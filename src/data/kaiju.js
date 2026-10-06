@@ -3,15 +3,15 @@
 export const MOVES = {
   swipe: {
     name: 'Artigliata', kind: 'melee', anim: 'swipe',
-    windup: 0.7, active: 0.16, recovery: 0.6, range: 5.8, arc: 70, dmg: 60, knock: 3, cooldown: 1.4, weight: 3,
+    windup: 0.7, active: 0.16, recovery: 0.6, range: 8, arc: 70, dmg: 60, knock: 3, cooldown: 1.4, weight: 3,
   },
   bite: {
     name: 'Morso', kind: 'melee', anim: 'bite',
-    windup: 0.8, active: 0.14, recovery: 0.7, range: 5.6, arc: 45, dmg: 85, knock: 2.5, cooldown: 2.2, weight: 2,
+    windup: 0.8, active: 0.14, recovery: 0.7, range: 7, arc: 45, dmg: 85, knock: 2.5, cooldown: 2.2, weight: 2,
   },
   pincer: {
     name: 'Chela', kind: 'melee', anim: 'swipe',
-    windup: 0.75, active: 0.16, recovery: 0.6, range: 7.2, arc: 55, dmg: 74, knock: 3.5, cooldown: 1.6, weight: 3,
+    windup: 0.75, active: 0.16, recovery: 0.6, range: 8.5, arc: 55, dmg: 74, knock: 3.5, cooldown: 1.6, weight: 3,
   },
   charge: {
     name: 'Carica', kind: 'charge', anim: 'charge',
@@ -19,7 +19,7 @@ export const MOVES = {
   },
   tail: {
     name: 'Colpo di coda', kind: 'aoe', anim: 'tail',
-    windup: 0.9, active: 0.4, recovery: 0.8, range: 8, dmg: 72, knock: 5, cooldown: 5, weight: 2,
+    windup: 0.9, active: 0.4, recovery: 0.8, range: 10, dmg: 72, knock: 5, cooldown: 5, weight: 2,
   },
   spit: {
     name: 'Sputo acido', kind: 'projectile', anim: 'spit',
@@ -49,7 +49,6 @@ export const KAIJU = {
     speed: 7.5,
     size: 1,
     radius: 2.6,
-    front: 4.3,
     skin: '#26343b',
     belly: '#57666a',
     glow: '#35e6ff',
@@ -65,7 +64,6 @@ export const KAIJU = {
     speed: 5.6,
     size: 1.05,
     radius: 3.6,
-    front: 5.4,
     skin: '#4a2b25',
     belly: '#7d5a44',
     glow: '#ff8a3a',
@@ -81,7 +79,6 @@ export const KAIJU = {
     speed: 6.6,
     size: 1.08,
     radius: 2.8,
-    front: 4.6,
     skin: '#1f3326',
     belly: '#5f7a4a',
     glow: '#a6ff3a',
@@ -97,7 +94,6 @@ export const KAIJU = {
     speed: 5.3,
     size: 1.25,
     radius: 4,
-    front: 5.6,
     skin: '#232438',
     belly: '#4b4a66',
     glow: '#8a7dff',
@@ -113,7 +109,6 @@ export const KAIJU = {
     speed: 6,
     size: 1.45,
     radius: 4.2,
-    front: 6.6,
     skin: '#14191f',
     belly: '#38424a',
     glow: '#35e6ff',

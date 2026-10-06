@@ -356,7 +356,7 @@ export class Screens {
       h(
         'div',
         { class: 'help-grid' },
-        h('div', {}, h('h3', {}, 'TASTIERA E MOUSE'), keys([['A D / ← →', 'Movimento'], ['J', 'Braccio sinistro (click sx)'], ['K', 'Braccio destro (click dx)'], ['L', 'Parata (tieni premuto)'], ['Spazio', 'Scatto / schivata'], ['E', 'Mossa speciale'], ['Q', 'Cambia bersaglio'], ['Esc', 'Pausa']])),
+        h('div', {}, h('h3', {}, 'TASTIERA E MOUSE'), keys([['W A S D', 'Movimento'], ['J', 'Braccio sinistro (click sx)'], ['K', 'Braccio destro (click dx)'], ['L', 'Parata (tieni premuto)'], ['Spazio', 'Scatto / schivata'], ['E', 'Mossa speciale'], ['Q', 'Cambia bersaglio'], ['Esc', 'Pausa']])),
         h('div', {}, h('h3', {}, 'TOUCH'), keys([['Joystick', 'Trascina a sinistra per muoverti'], ['SX DX', 'Attacchi con le due braccia'], ['PARA', 'Tieni premuto per parare'], ['SCATTO', 'Schivata rapida'], ['SPEC.', 'Mossa speciale'], ['⌖', 'Cambia bersaglio']])),
         h('div', {}, h('h3', {}, 'GAMEPAD'), keys([['Stick', 'Movimento'], ['X Y', 'Braccio sinistro / destro'], ['LB', 'Parata'], ['A', 'Scatto'], ['B', 'Speciale'], ['RB', 'Cambia bersaglio'], ['Start', 'Pausa']])),
       ),
@@ -365,9 +365,9 @@ export class Screens {
         'ul',
         { class: 'tips' },
         h('li', {}, 'Para appena prima dell\'impatto per una PARATA PERFETTA: il Kaiju resta stordito. Il mirino diventa rosso quando il Kaiju carica un colpo e bianco quando è il momento di parare.'),
-        h('li', {}, 'Quando un Kaiju brilla sta caricando un attacco: para, oppure scatta attraverso di lui per schivarlo.'),
+        h('li', {}, 'Quando un Kaiju brilla sta caricando un attacco: scatta di lato o para.'),
         h('li', {}, 'Gli attacchi pesanti (Pugno a Razzo, Martello) sbilanciano i Kaiju più in fretta.'),
-        h('li', {}, 'Il Cannone al Plasma consuma il reattore: tieni d\'occhio la barra gialla.'),
+        h('li', {}, 'Il Fucile Beam consuma il reattore: tieni d\'occhio la barra gialla.'),
         h('li', {}, 'Ogni torso ha una mossa speciale diversa. Provale tutte nell\'hangar!'),
       ),
     ];

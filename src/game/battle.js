@@ -1,19 +1,24 @@
-// Battaglia 2D tra il Titano e i Kaiju.
-import { Stage } from '../engine/stage.js';
-import { FX } from '../engine/fx.js';
-import { Camera2D } from '../engine/camera.js';
-import { glowSprite } from '../engine/sprite.js';
+import * as THREE from 'three';
+import { Environment } from '../render/environment.js';
+import { Effects } from '../render/effects.js';
+import { glowTexture } from '../render/textures.js';
+import { nightEnvMap } from '../render/envmap.js';
 import { ENVIRONMENTS } from '../data/environments.js';
+import { CATEGORY_LABEL } from '../data/kaiju.js';
 import { survivalWave } from '../data/missions.js';
 import { audio } from '../core/audio.js';
 import { input } from '../core/input.js';
-import { Robot } from './robot.js';
-import { Kaiju } from './kaiju.js';
-import { clamp } from './anim.js';
+import { RobotFighter } from './robotFighter.js';
+import { KaijuFighter } from './kaijuFighter.js';
+import { CameraRig } from './camera.js';
+import { wrapAngle, clamp } from './anim.js';
 import { Hud } from '../ui/hud.js';
 
+const _v = new THREE.Vector3();
+const _u = new THREE.Vector3();
+const _w = new THREE.Vector3();
+
 const NUMBERS_IT = ['zero', 'uno', 'due', 'tre', 'quattro', 'cinque'];
-const NO_INPUT = { move: { x: 0, y: 0 }, take: () => false, held: {} };
 
 export class Battle {
   constructor(app, { mission, robot, mode = 'campaign', onEnd }) {
@@ -23,33 +28,39 @@ export class Battle {
     this.onEnd = onEnd;
     const q = app.quality;
     this.quality = q;
-    this.S = q.spriteRes;
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(55, app.aspect, 0.3, 2500);
     const preset = ENVIRONMENTS[mission.env] || ENVIRONMENTS.tokyo;
-    this.stage = new Stage(preset, q);
-    this.stage.onThunder = (d) => audio.thunder(d);
-    this.fx = new FX(q);
-    this.cam = new Camera2D();
+    this.env = new Environment(this.scene, preset, q);
+    this.scene.environment = nightEnvMap(app.renderer, preset);
+    this.scene.environmentIntensity = 0.6;
+    this.env.onThunder = (d) => audio.thunder(0.4 + d * 2);
+    this.fx = new Effects(this.scene, q);
+    this.fx.setViewport(app.height * app.renderer.getPixelRatio());
 
-    this.player = new Robot(robot, { S: this.S });
-    this.player.x = -8;
-    this.player.facing = 1;
-    this.player.stepCallback = (foot, amp) => this._footstep(amp);
+    this.player = new RobotFighter(robot, this.scene, { shadows: q.shadows });
+    this.player.pos.set(0, 0, -16);
+    this.player.yaw = 0;
+    this.player.stepCallback = (foot, amp) => this._footstep(foot, amp);
 
-    this.arenaHalf = 48;
+    this.arenaRadius = 58;
     this.enemies = [];
     this.projectiles = [];
     this.wave = 1;
     this._spawnWave(mission.enemies);
 
+    this.camRig = new CameraRig(this.camera);
     this.state = 'intro';
     this.stateTime = 0;
     this.hitstop = 0;
     this.slowmo = 0;
-    this.slowFactor = 0.3;
+    this.slowFactor = 1;
     this.token = null;
     this.tokenGap = 0;
     this.combo = 0;
     this.comboTimer = 0;
+    this.lockIndex = 0;
     this._target = null;
     this.paused = false;
     this.ended = false;
@@ -57,16 +68,17 @@ export class Battle {
     this.lowHpTimer = 0;
     this.beam = null;
     this.missileQueue = 0;
-    this.focus = null;
-
-    const k = this.enemies[0];
-    this.cam.set(k.x, 3, 16 + k.size * 4);
-    this.camMode = 'intro';
 
     this.hud = new Hud(app.ui, this);
+    const k = this.enemies[0];
+    this.camRig.setMode('intro', { kaiju: k, angle: Math.PI * 0.85 });
+    this.camRig.pos.set(k.pos.x + 20, 3, k.pos.z - 30);
+    this.camRig.look.set(k.pos.x, 2, k.pos.z);
+    this.camRig.snap();
+
     const boss = mission.boss || this.enemies.some((e) => e.def.category >= 5);
     audio.playMusic(boss ? 'boss' : 'battle');
-    audio.startAmbience({ rain: preset.rain ?? 0.8, snow: preset.snow });
+    audio.startAmbience({ rain: (ENVIRONMENTS[mission.env] || {}).rain ?? 0.8, snow: (ENVIRONMENTS[mission.env] || {}).snow });
     audio.alarm();
     const cat = Math.max(...this.enemies.map((e) => e.def.category));
     this.hud.introCard(mission, this.enemies);
@@ -80,6 +92,10 @@ export class Battle {
     return this.state === 'fight';
   }
 
+  get cameraYaw() {
+    return this.camRig.yaw;
+  }
+
   get aliveEnemies() {
     return this.enemies.filter((e) => e.alive);
   }
@@ -90,11 +106,10 @@ export class Battle {
     let cur = this._target && this._target.alive ? this._target : null;
     // un bersaglio scelto a mano resta per qualche secondo, poi si torna al Kaiju piu' vicino
     if (cur && this.manualTarget > 0) return cur;
-    const px = this.player.x;
-    const gap = (e) => Math.abs(e.x - px) - e.extent(px);
+    const gap = (e) => e.pos.distanceTo(this.player.pos) - e.radius;
     let best = alive[0];
     for (const e of alive) if (gap(e) < gap(best)) best = e;
-    if (!cur || (best !== cur && gap(best) < gap(cur) - 3)) cur = best;
+    if (!cur || (best !== cur && gap(best) < gap(cur) - 4)) cur = best;
     this._target = cur;
     return cur;
   }
@@ -115,11 +130,16 @@ export class Battle {
   }
 
   _spawnWave(list) {
+    const q = this.quality;
     list.forEach((e, i) => {
-      const k = new Kaiju(e.type, e.level, { S: this.S });
-      const side = i % 2 === 0 ? 1 : -1;
-      k.x = clamp(this.player.x + side * (26 + i * 4), -this.arenaHalf + 6, this.arenaHalf - 6);
-      k.facing = -side;
+      const k = new KaijuFighter(e.type, e.level, this.scene, { shadows: q.shadows });
+      const side = i === 0 ? 0 : i % 2 ? -1 : 1;
+      const base = this.player.pos;
+      k.pos.set(base.x + side * 16, 0, base.z + 36 + (i > 0 ? 6 : 0));
+      if (Math.hypot(k.pos.x, k.pos.z) > this.arenaRadius - 6) {
+        k.pos.setLength(this.arenaRadius - 10);
+      }
+      k.yaw = Math.atan2(base.x - k.pos.x, base.z - k.pos.z);
       k.stateTime = -i * 0.8;
       this.enemies.push(k);
     });
@@ -131,7 +151,7 @@ export class Battle {
   }
 
   shake(a) {
-    this.cam.shake(a);
+    this.camRig.shake(a);
   }
 
   flashScreen(color, dur = 0.3) {
@@ -154,68 +174,81 @@ export class Battle {
     }
   }
 
-  _footstep(amp) {
-    this.fx.splash(this.player.x + this.player.facing * 0.6, 0.6 + amp * 0.4);
+  _footstep(foot, amp) {
+    const p = this.player;
+    const j = foot === 'L' ? p.model.joints.ankleL : p.model.joints.ankleR;
+    j.getWorldPosition(_v);
+    _v.y = 0.3;
+    this.fx.splash(_v, 0.7 + amp * 0.4);
     audio.step(0.5 + amp * 0.5);
-    this.shake(0.03 * amp);
-  }
-
-  /** Posizione sullo schermo (pixel CSS) di un punto del mondo: usata dall'HUD. */
-  screenPos(x, y) {
-    const { width: W, height: H, dpr } = this.app;
-    const [sx, sy] = this.cam.toScreen(x, y, W * dpr, H * dpr);
-    return [sx / dpr, sy / dpr];
+    this.shake(0.035 * amp);
   }
 
   // ---------- attacchi del Titano ----------
   onPlayerStrike(player, arm, w, hitIndex) {
-    const side = arm === 'R' ? 'F' : 'B';
     if (w.type === 'ranged') {
-      const [mx, my] = player.point(side === 'F' ? 'muzzleF' : 'muzzleB');
+      const from = player.worldPoint(arm === 'L' ? 'muzzleL' : 'muzzleR', new THREE.Vector3());
       const tgt = this.target;
-      let dx = player.facing;
-      let dy = 0;
+      const dir = new THREE.Vector3();
       if (tgt) {
-        const [tx, ty] = tgt.point('center');
-        const len = Math.hypot(tx - mx, ty - my) || 1;
-        dx = (tx - mx) / len;
-        dy = (ty - my) / len;
-      }
-      this._projectile({ owner: 'player', kind: 'plasma', x: mx, y: my, vx: dx * w.speed, vy: dy * w.speed, dmg: w.dmg * player.powerMul, poise: w.poise, color: player.cfg.colors.accent, radius: 1.2, life: 1.4 });
+        tgt.centerPosition(_v);
+        dir.copy(_v).sub(from).normalize();
+      } else player.forward(dir);
+      this._projectile({
+        owner: 'player',
+        kind: 'plasma',
+        pos: from,
+        vel: dir.multiplyScalar(w.speed),
+        dmg: w.dmg * player.powerMul,
+        poise: w.poise,
+        color: player.cfg.colors.accent,
+        radius: 1.2,
+        life: 1.4,
+      });
       audio.plasma();
-      this.fx.flash(mx, my, player.cfg.colors.accent, 4);
+      this.fx.flash(from, player.cfg.colors.accent, 5);
       this.shake(0.08);
       return;
     }
-    const [hx, hy] = player.point(side === 'F' ? 'handF' : 'handB');
+
+    const handPos = player.worldPoint(arm === 'L' ? 'handL' : 'handR', new THREE.Vector3());
     let hitAny = false;
     const struck = new Set();
+    const fwd = player.forward(_u).clone();
     for (const e of this.enemies) {
       if (!e.alive || e.state === 'spawn') continue;
-      const dx = e.x - player.x;
-      const edge = Math.abs(dx) - e.extent(player.x);
-      if (Math.sign(dx) === player.facing && edge <= w.range * player.art.scale[0]) {
+      const dx = e.pos.x - player.pos.x;
+      const dz = e.pos.z - player.pos.z;
+      const dist = Math.hypot(dx, dz);
+      const edge = dist - e.radius;
+      const ang = Math.abs(wrapAngle(Math.atan2(dx, dz) - player.yaw));
+      if (edge <= w.range && ang <= (w.arc * Math.PI) / 180) {
         hitAny = true;
         struck.add(e);
         const crit = Math.random() < 0.08;
         const dmg = w.dmg * player.powerMul * (0.92 + Math.random() * 0.16) * (crit ? 1.6 : 1);
-        const [cx, cy] = e.point('center');
-        const px = e.x - Math.sign(dx) * e.extent(player.x) * 0.8;
-        const py = clamp(hy, 1.5, cy + 2);
-        this._damageKaiju(e, dmg, w.poise, player.facing, px, py, crit);
-        if (w.slash) this.fx.sparks(px, py, player.cfg.colors.accent, 16, 20, -player.facing);
-        void cx;
+        e.centerPosition(_v);
+        // punto d'impatto: superficie del Kaiju verso il Titano
+        _w.set(-dx / dist, 0, -dz / dist);
+        const hitPos = _v.clone().addScaledVector(_w, e.radius * 0.8);
+        hitPos.y = clamp(handPos.y, 2, e.height * 0.8);
+        this._damageKaiju(e, dmg, w.poise, fwd, hitPos, crit);
+        if (w.slash) this.fx.sparks(hitPos, player.cfg.colors.accent, 18, 22);
       }
     }
     if (w.shockwave) {
-      this.fx.shockwave(hx, player.cfg.colors.accent, w.shockwave, 0.5);
+      const p = handPos.clone();
+      p.y = 0.3;
+      this.fx.shockwave(p, player.cfg.colors.accent, w.shockwave, 0.5);
+      this.fx.splash(p, 2.5);
       audio.explosion(0.7);
       this.shake(0.35);
       for (const e of this.enemies) {
-        if (!e.alive || e.state === 'spawn' || struck.has(e)) continue;
-        if (Math.abs(e.x - hx) - e.extent(hx) <= w.shockwave) {
-          const [cx, cy] = e.point('center');
-          this._damageKaiju(e, w.dmg * 0.4 * player.powerMul, w.poise * 0.5, Math.sign(e.x - hx) || 1, cx, cy, false);
+        if (!e.alive || e.state === 'spawn') continue;
+        const d = Math.hypot(e.pos.x - p.x, e.pos.z - p.z) - e.radius;
+        if (d <= w.shockwave && !struck.has(e)) {
+          e.centerPosition(_v);
+          this._damageKaiju(e, w.dmg * 0.4 * player.powerMul, w.poise * 0.5, fwd, _v.clone(), false);
         }
       }
     }
@@ -225,31 +258,31 @@ export class Battle {
       audio.impact(heavy, true);
       this.hitstop = heavy ? 0.1 : 0.05;
       this.shake(heavy ? 0.45 : 0.22);
+      if (heavy) this.camRig.kick(4);
       audio.vibrate(heavy ? 45 : 20);
       this.combo++;
       this.comboTimer = 1.8;
       this.stats.maxCombo = Math.max(this.stats.maxCombo, this.combo);
       player.addSync((w.dmg * 0.11 + this.combo * 0.4) * (1 + (w.syncBonus || 0)));
     }
-    void hitIndex;
   }
 
-  _damageKaiju(e, dmg, poise, dir, x, y, crit = false) {
+  _damageKaiju(e, dmg, poise, dir, pos, crit = false) {
     dmg = Math.round(dmg);
     const before = e.hp;
     if (!e.takeHit(dmg, poise, dir, this)) return;
     this.stats.dmgDealt += Math.min(before, dmg);
-    this.fx.blood(x, y, e.def.glow, crit ? 40 : 22, dir);
-    this.fx.sparks(x, y, '#ffcf7a', crit ? 26 : 14, 16, -dir);
-    this.hud.damageNumber(x, y, dmg, crit);
+    this.fx.blood(pos, e.def.glow, crit ? 40 : 22);
+    this.fx.sparks(pos, '#ffcf7a', crit ? 30 : 16, 16);
+    this.hud.damageNumber(pos, dmg, crit);
   }
 
   // ---------- attacchi dei Kaiju ----------
   kaijuHitsPlayer(k, move, opts = {}) {
     const p = this.player;
     const dmg = Math.round(move.dmg * k.dmgMul * (k.roarBuff > 0 ? 1.15 : 1) * (0.9 + Math.random() * 0.2));
-    const res = p.takeHit(dmg, k.x, move.knock || 3, this);
-    const [cx, cy] = p.point('chest');
+    const res = p.takeHit(dmg, k.pos, move.knock || 3, this);
+    p.worldPoint('chest', _v);
     switch (res.result) {
       case 'dodge':
         this.message('SCHIVATO!', 'good', 0.6);
@@ -259,8 +292,8 @@ export class Battle {
         this.stats.perfect++;
         k.stagger(1.4, this);
         audio.block(true);
-        this.fx.flash(cx + p.facing, cy, '#ffffff', 10);
-        this.fx.sparks(cx + p.facing, cy, p.cfg.colors.accent, 36, 24);
+        this.fx.flash(_v, '#ffffff', 16);
+        this.fx.sparks(_v, p.cfg.colors.accent, 40, 26);
         this.slowmo = 0.35;
         this.hitstop = 0.08;
         this.shake(0.3);
@@ -269,22 +302,21 @@ export class Battle {
         break;
       case 'block':
         audio.block(false);
-        this.fx.sparks(cx + p.facing * 1.5, cy, '#ffd27a', 22, 18, -p.facing);
+        this.fx.sparks(_v.addScaledVector(p.forward(_u), 2), '#ffd27a', 24, 18);
         this.shake(0.25);
         this.stats.dmgTaken += res.dmg;
-        if (res.dmg > 0) this.hud.damageNumber(cx, cy + 1, res.dmg, false, true);
+        if (res.dmg > 0) this.hud.damageNumber(_v, res.dmg, false, true);
         audio.vibrate(25);
         break;
       case 'hit':
         audio.impact(true, true);
-        this.fx.sparks(cx, cy, '#ffb347', 30, 20, -p.facing);
-        this.fx.debris(cx, cy, 6);
-        this.fx.smoke(cx, cy, 3, '#25272c', 1);
+        this.fx.sparks(_v, '#ffb347', 34, 20);
+        this.fx.smokePuff(_v, 4, '#25272c', 2.5);
         this.shake(clamp(dmg / 90, 0.3, 0.9));
         this.hitstop = 0.06;
         this.stats.dmgTaken += res.dmg;
         this.hud.flash('#ff2020', 0.25);
-        this.hud.damageNumber(cx, cy + 1, res.dmg, false, true);
+        this.hud.damageNumber(_v, res.dmg, false, true);
         audio.vibrate([60, 30, 40]);
         this.combo = 0;
         break;
@@ -297,17 +329,39 @@ export class Battle {
   }
 
   spawnAcid(k) {
-    const [mx, my] = k.point('mouth');
+    const from = k.mouthPosition(new THREE.Vector3());
     const p = this.player;
-    const tx = p.x + p.vx * 0.5;
-    const t = Math.max(0.4, Math.abs(tx - mx) / k.move.speed);
-    const vx = (tx - mx) / t;
-    const vy = (5 - my) / t + 9 * t * 0.5;
-    this._projectile({ owner: 'kaiju', kind: 'acid', x: mx, y: my, vx, vy, dmg: k.move.dmg * k.dmgMul, color: k.def.glow, radius: 1.5, life: 2.4, source: k, move: k.move });
+    const aim = _v.set(p.pos.x, 5, p.pos.z).addScaledVector(p.vel, 0.6);
+    const vel = aim.sub(from).normalize().multiplyScalar(k.move.speed);
+    this._projectile({
+      owner: 'kaiju',
+      kind: 'acid',
+      pos: from,
+      vel: vel.clone(),
+      dmg: k.move.dmg * k.dmgMul,
+      color: k.def.glow,
+      radius: 1.6,
+      life: 2.2,
+      source: k,
+      move: k.move,
+    });
   }
 
-  _projectile(o) {
-    this.projectiles.push({ ...o, age: 0 });
+  _projectile(opts) {
+    const mat = new THREE.SpriteMaterial({
+      map: glowTexture(),
+      color: new THREE.Color(opts.color).multiplyScalar(opts.kind === 'missile' ? 2 : 3),
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      transparent: true,
+      toneMapped: false,
+    });
+    const sprite = new THREE.Sprite(mat);
+    const size = opts.kind === 'acid' ? 3.2 : opts.kind === 'missile' ? 1.6 : 3;
+    sprite.scale.setScalar(size);
+    sprite.position.copy(opts.pos);
+    this.scene.add(sprite);
+    this.projectiles.push({ ...opts, pos: opts.pos.clone(), vel: opts.vel.clone(), sprite, age: 0 });
   }
 
   _updateProjectiles(dt) {
@@ -317,32 +371,36 @@ export class Battle {
       if (pr.kind === 'missile') {
         const tgt = pr.target && pr.target.alive ? pr.target : this.target;
         if (tgt && pr.age > 0.25) {
-          const [tx, ty] = tgt.point('center');
-          const len = Math.hypot(tx - pr.x, ty - pr.y) || 1;
-          const s = 46;
-          pr.vx += ((tx - pr.x) / len * s - pr.vx) * Math.min(1, dt * 5);
-          pr.vy += ((ty - pr.y) / len * s - pr.vy) * Math.min(1, dt * 5);
+          tgt.centerPosition(_v);
+          const desired = _v.sub(pr.pos).normalize().multiplyScalar(48);
+          pr.vel.lerp(desired, Math.min(1, dt * 5));
         }
-        if (Math.random() < 0.9) this.fx.emit('smoke', pr.x, pr.y, 0, 0.5, 0.6, 0.25, '#5a5e66', { size1: 0.7, drag: 1 });
-      } else if (pr.kind === 'acid') pr.vy -= 9 * dt;
-      pr.x += pr.vx * dt;
-      pr.y += pr.vy * dt;
-      this.fx.trail(pr.x, pr.y, pr.color, pr.kind === 'acid' ? 0.8 : 0.5, 0.3);
+        if (Math.random() < 0.9) this.fx.smoke.emit(pr.pos.x, pr.pos.y, pr.pos.z, 0, 0.5, 0, 0.35, 0.37, 0.4, 1.2, 0.6, -0.5, 1, 2.5);
+      } else if (pr.kind === 'acid') {
+        pr.vel.y -= 9 * dt;
+      }
+      pr.pos.addScaledVector(pr.vel, dt);
+      pr.sprite.position.copy(pr.pos);
+      this.fx.trail(pr.pos, pr.color, pr.kind === 'acid' ? 1.4 : 0.9, 0.3);
+
       let hit = false;
       if (pr.owner === 'kaiju') {
         const p = this.player;
-        if (p.alive && Math.abs(pr.x - p.x) < p.radius + pr.radius * 0.5 && pr.y < p.height + 1) {
+        const d = Math.hypot(pr.pos.x - p.pos.x, pr.pos.z - p.pos.z);
+        if (p.alive && d < p.radius + pr.radius && pr.pos.y < p.height + 1) {
           hit = true;
           const res = this.kaijuHitsPlayer(pr.source, pr.move);
-          if (res.result === 'hit') this.fx.blood(pr.x, pr.y, pr.color, 20);
+          if (res.result === 'hit') this.fx.blood(pr.pos, pr.color, 25);
         }
       } else {
         for (const e of this.enemies) {
           if (!e.alive || e.state === 'spawn') continue;
-          if (Math.abs(pr.x - e.x) < e.extent(pr.x) + pr.radius * 0.5 && pr.y < e.height + 2) {
+          const d = Math.hypot(pr.pos.x - e.pos.x, pr.pos.z - e.pos.z);
+          if (d < e.radius + pr.radius && pr.pos.y < e.height + 2) {
             hit = true;
-            this._damageKaiju(e, pr.dmg * (0.92 + Math.random() * 0.16), pr.poise || 8, Math.sign(pr.vx) || 1, pr.x, pr.y, false);
-            this.fx.explosion(pr.x, pr.y, pr.kind === 'missile' ? 0.55 : 0.45, pr.color);
+            const dir = _u.copy(pr.vel).setY(0).normalize();
+            this._damageKaiju(e, pr.dmg * (0.92 + Math.random() * 0.16), pr.poise || 8, dir.clone(), pr.pos.clone(), false);
+            this.fx.explosion(pr.pos, pr.kind === 'missile' ? 0.6 : 0.5, pr.color);
             audio.explosion(0.5);
             audio.impact(false, false);
             this.shake(0.15);
@@ -354,12 +412,16 @@ export class Battle {
           }
         }
       }
-      if (!hit && pr.y <= 0.2) {
+      if (!hit && pr.pos.y <= 0.2) {
         hit = true;
-        this.fx.splash(pr.x, 1.4);
-        if (pr.kind !== 'acid') this.fx.explosion(pr.x, 0.5, 0.4, pr.color);
+        this.fx.splash(pr.pos, 1.5);
+        if (pr.kind !== 'acid') this.fx.explosion(pr.pos, 0.4, pr.color);
       }
-      if (hit || pr.age > pr.life) this.projectiles.splice(i, 1);
+      if (hit || pr.age > pr.life) {
+        this.scene.remove(pr.sprite);
+        pr.sprite.material.dispose();
+        this.projectiles.splice(i, 1);
+      }
     }
   }
 
@@ -367,9 +429,9 @@ export class Battle {
   onSpecialStart(type) {
     const names = { beam: 'RAGGIO NUCLEARE', missiles: 'SALVA DI MISSILI', emp: 'IMPULSO TESLA', overdrive: 'FURIA OVERDRIVE' };
     this.message(names[type] + '!', 'special', 1.6);
+    this.camRig.kick(8);
     this.shake(0.3);
     this.hud.flash(this.player.cfg.colors.accent, 0.4);
-    this.focus = { x: this.player.x, t: 1.2 };
     audio.announce(names[type].toLowerCase());
     audio.vibrate([40, 40, 80]);
   }
@@ -378,71 +440,98 @@ export class Battle {
     const mult = player.stats.special;
     const accent = player.cfg.colors.accent;
     if (type === 'beam') {
-      this.beam = { tick: 0, mult, t: 0, len: 0 };
+      const mat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(accent).multiplyScalar(1.4),
+        transparent: true,
+        opacity: 0.55,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        toneMapped: false,
+      });
+      const geo = new THREE.CylinderGeometry(1, 1, 1, 16, 1, true);
+      geo.translate(0, 0.5, 0);
+      geo.rotateX(Math.PI / 2);
+      const outer = new THREE.Mesh(geo, mat);
+      const inner = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffffff').multiplyScalar(1.6), toneMapped: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      inner.scale.set(0.35, 0.35, 1);
+      outer.add(inner);
+      this.scene.add(outer);
+      this.beam = { mesh: outer, tick: 0, mult };
       audio.beam(1.35);
       this.shake(0.4);
     } else if (type === 'missiles') {
       this.missileQueue = Math.round(16 * (0.9 + mult * 0.1));
       this.missileTimer = 0;
+      this.missileSide = 1;
     } else if (type === 'emp') {
-      const x = player.x;
-      this.fx.shockwave(x, accent, 22, 0.9);
-      this.fx.shockwave(x, '#ffffff', 14, 0.6);
-      for (let i = 0; i < 10; i++) this.fx.electric(x, 4, accent, 10, 1, 0.3);
+      const p = player.pos;
+      this.fx.shockwave(p, accent, 24, 0.9);
+      this.fx.shockwave(p, '#ffffff', 16, 0.6);
+      this.fx.electric(_v.set(p.x, 3, p.z), accent, 12, 60);
+      this.fx.splash(p, 4);
       audio.zap();
       audio.explosion(1.4);
       this.shake(1);
       this.hud.flash(accent, 0.5);
       for (const e of this.enemies) {
         if (!e.alive || e.state === 'spawn') continue;
-        if (Math.abs(e.x - x) - e.extent(x) <= 22) {
-          const [cx, cy] = e.point('center');
-          this._damageKaiju(e, 240 * mult * player.stats.power, 0, Math.sign(e.x - x) || 1, cx, cy, false);
+        const d = Math.hypot(e.pos.x - p.x, e.pos.z - p.z) - e.radius;
+        if (d <= 24) {
+          e.centerPosition(_v);
+          _u.set(e.pos.x - p.x, 0, e.pos.z - p.z).normalize();
+          this._damageKaiju(e, 240 * mult * player.stats.power, 0, _u.clone(), _v.clone(), false);
           e.stunFor(3.4, this);
         }
       }
     } else if (type === 'overdrive') {
       player.overdrive = 9;
       player.energy = player.maxEnergy;
-      this.fx.shockwave(player.x, accent, 9, 0.6);
-      const [cx, cy] = player.point('chest');
-      for (let i = 0; i < 6; i++) this.fx.electric(cx, cy, accent, 5, 1, 0.3);
+      this.fx.shockwave(player.pos, accent, 10, 0.6);
+      this.fx.electric(_v.set(player.pos.x, 6, player.pos.z), accent, 6, 40);
       audio.roar(2.2, 1, 0.5);
+      this.message('OVERDRIVE ATTIVO!', 'special', 1.4);
     }
   }
 
   onSpecialTick(player, type, t, dt) {
     if (type === 'beam' && this.beam) {
-      const [ox, oy] = player.point('core');
+      const from = player.worldPoint('core', _v).clone();
+      const dir = player.forward(_u).clone();
       const tgt = this.target;
-      let dx = player.facing;
-      let dy = 0;
       if (tgt) {
-        const [tx, ty] = tgt.point('center');
-        const l = Math.hypot(tx - ox, ty - oy) || 1;
-        dx = (tx - ox) / l;
-        dy = (ty - oy) / l;
+        tgt.centerPosition(_w);
+        dir.copy(_w).sub(from).normalize();
       }
-      let len = 70;
+      // lunghezza: fino al primo Kaiju colpito
+      let len = 80;
       let hitE = null;
       for (const e of this.enemies) {
         if (!e.alive || e.state === 'spawn') continue;
-        const along = (e.x - ox) * dx;
-        if (along > 0 && Math.sign(e.x - ox) === Math.sign(dx) && along - e.extent(ox) < len) {
-          len = Math.max(2, Math.abs(e.x - ox) - e.extent(ox) * 0.6);
+        e.centerPosition(_w);
+        const rel = _w.sub(from);
+        const along = rel.dot(dir);
+        if (along < 0) continue;
+        const perp = rel.addScaledVector(dir, -along).length();
+        if (perp < e.radius + 1.5 && along < len) {
+          len = Math.max(2, along - e.radius * 0.6);
           hitE = e;
         }
       }
-      Object.assign(this.beam, { x: ox, y: oy, dx, dy, len, t });
-      const ex = ox + dx * len;
-      const ey = oy + dy * len;
-      this.fx.trail(ex, ey, player.cfg.colors.accent, 2, 0.3);
-      if (Math.random() < 0.5) this.fx.sparks(ex, ey, '#ffffff', 5, 18);
+      const m = this.beam.mesh;
+      m.position.copy(from);
+      m.lookAt(_w.copy(from).add(dir));
+      const pulse = 1 + Math.sin(t * 40) * 0.15;
+      const width = Math.min(1, t * 5) * 0.95 * pulse;
+      m.scale.set(width, width, len);
+      const end = from.clone().addScaledVector(dir, len);
+      this.fx.trail(end, player.cfg.colors.accent, 4, 0.3);
+      if (Math.random() < 0.5) this.fx.sparks(end, '#ffffff', 6, 20);
       this.shake(0.06);
       this.beam.tick += dt;
       if (hitE && this.beam.tick >= 0.1) {
         this.beam.tick = 0;
-        this._damageKaiju(hitE, 31 * this.beam.mult * player.stats.power, 6, Math.sign(dx) || 1, ex, ey, false);
+        this._damageKaiju(hitE, 31 * this.beam.mult * player.stats.power, 6, dir.clone().setY(0).normalize(), end, false);
+        this.fx.blood(end, hitE.def.glow, 12);
         audio.impact(false, false);
       }
     } else if (type === 'missiles' && this.missileQueue > 0) {
@@ -450,11 +539,28 @@ export class Battle {
       while (this.missileTimer <= 0 && this.missileQueue > 0) {
         this.missileTimer += 0.065;
         this.missileQueue--;
-        const [sx, sy] = player.point('chest');
+        this.missileSide *= -1;
+        const from = player.worldPoint('chest', new THREE.Vector3());
+        const right = _u.set(-Math.cos(player.yaw), 0, Math.sin(player.yaw));
+        from.addScaledVector(right, this.missileSide * 2.2 * player.model.body.scale.x);
+        from.y += 2.6;
+        const fwd = player.forward(_w);
+        const vel = new THREE.Vector3(
+          fwd.x * 10 + right.x * this.missileSide * 8 + (Math.random() - 0.5) * 6,
+          18 + Math.random() * 8,
+          fwd.z * 10 + right.z * this.missileSide * 8 + (Math.random() - 0.5) * 6,
+        );
         this._projectile({
-          owner: 'player', kind: 'missile', x: sx - player.facing * 0.8, y: sy + 2,
-          vx: player.facing * (6 + Math.random() * 6) - player.facing * 4, vy: 18 + Math.random() * 10,
-          dmg: 30 * player.stats.special * player.stats.power, poise: 6, color: '#ffb347', radius: 1.3, life: 3, target: this.target,
+          owner: 'player',
+          kind: 'missile',
+          pos: from,
+          vel,
+          dmg: 30 * player.stats.special * player.stats.power,
+          poise: 6,
+          color: '#ffb347',
+          radius: 1.5,
+          life: 3,
+          target: this.target,
         });
         audio.missile();
       }
@@ -462,22 +568,30 @@ export class Battle {
   }
 
   onSpecialEnd(player, type) {
-    if (type === 'beam') this.beam = null;
+    if (type === 'beam' && this.beam) {
+      this.scene.remove(this.beam.mesh);
+      this.beam.mesh.traverse((o) => {
+        o.geometry?.dispose();
+        o.material?.dispose();
+      });
+      this.beam = null;
+    }
   }
 
   // ---------- eventi di fine scontro ----------
   onKaijuDeath(k) {
     this.stats.kills++;
-    const [cx, cy] = k.point('center');
-    this.fx.blood(cx, cy, k.def.glow, 80);
-    this.fx.explosion(cx, cy, 1.2, k.def.glow);
-    audio.roar(0.7 / k.size, 2.4, 1.2);
+    k.centerPosition(_v);
+    this.fx.blood(_v, k.def.glow, 90);
+    this.fx.explosion(_v, 1.2, k.def.glow);
+    audio.roar(0.7 / k.def.size, 2.4, 1.2);
     audio.explosion(1.5);
     this.shake(0.9);
-    this.stage.lightning();
+    this.env.lightning();
     this.player.addSync(25);
     if (this._target === k) this._target = null;
-    if (this.aliveEnemies.length > 0) {
+    const left = this.aliveEnemies.length;
+    if (left > 0) {
       this.message('KAIJU ABBATTUTO!', 'good', 1.6);
       audio.announce('Kaiju abbattuto');
       return;
@@ -491,13 +605,13 @@ export class Battle {
       this.slowmo = 0.6;
       return;
     }
+    // vittoria
     this.state = 'outro';
     this.stateTime = 0;
     this.won = true;
     this.slowmo = 1.6;
     this.slowFactor = 0.25;
-    this.camMode = 'finisher';
-    this.finisher = k;
+    this.camRig.setMode('finisher', { kaiju: k });
     this.message('KAIJU ABBATTUTO!', 'victory', 2.5);
     setTimeout(() => {
       if (!this.ended) audio.announce('Kaiju abbattuto. Missione compiuta.');
@@ -511,11 +625,11 @@ export class Battle {
     this.won = false;
     this.slowmo = 1.2;
     this.slowFactor = 0.3;
-    this.camMode = 'defeat';
+    this.camRig.setMode('defeat');
     audio.explosion(1.6);
     audio.alarm();
-    const [cx, cy] = this.player.point('chest');
-    this.fx.explosion(cx, cy, 1.3);
+    this.player.worldPoint('chest', _v);
+    this.fx.explosion(_v, 1.3);
     this.message('TITANO ABBATTUTO', 'danger', 3);
     setTimeout(() => {
       if (!this.ended) audio.announce('Titano abbattuto. Pilota, rispondi.');
@@ -524,6 +638,8 @@ export class Battle {
 
   _nextWave() {
     this.wave++;
+    // rimuovi i Kaiju sconfitti
+    for (const e of this.enemies) e.dispose();
     this.enemies = [];
     const p = this.player;
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.35);
@@ -541,7 +657,12 @@ export class Battle {
     this.ended = true;
     this.stats.time = Math.round(this.stats.time);
     audio.sting(this.won);
-    this.onEnd?.({ won: !!this.won, mode: this.mode, mission: this.mission, stats: { ...this.stats, hpLeft: this.player.hp / this.player.maxHp } });
+    this.onEnd?.({
+      won: !!this.won,
+      mode: this.mode,
+      mission: this.mission,
+      stats: { ...this.stats, hpLeft: this.player.hp / this.player.maxHp },
+    });
   }
 
   // ---------- ciclo principale ----------
@@ -581,14 +702,14 @@ export class Battle {
     this.manualTarget = Math.max(0, (this.manualTarget || 0) - dt);
 
     if (this.state === 'intro') {
-      const ready = this.enemies.every((e) => e.state !== 'spawn' || e.stateTime > 2.4);
-      if ((this.stateTime > 4.2 && ready) || (this.stateTime > 1.2 && (input.take('left') || input.take('right') || input.take('dash')))) {
+      const spawned = this.enemies.every((e) => e.state !== 'spawn' || e.stateTime > 2.4);
+      if ((this.stateTime > 4.2 && spawned) || (this.stateTime > 1.2 && (input.take('left') || input.take('right') || input.take('dash')))) {
         this.state = 'fight';
         this.stateTime = 0;
-        this.camMode = 'follow';
+        this.camRig.setMode('follow');
         this.hud.hideIntro();
         this.message('COMBATTI!', 'big', 1.2);
-        audio.roar(1 / this.enemies[0].size, 1.8, 1);
+        audio.roar(1 / this.enemies[0].def.size, 1.8, 1);
         input.clearPresses();
         this.enemies.forEach((e) => {
           if (e.state === 'spawn') e.stateTime = Math.max(e.stateTime, 2.2);
@@ -603,23 +724,29 @@ export class Battle {
     } else if (this.state === 'outro') {
       if (this.won && this.stateTime > 1.8 && this.player.state !== 'victory') {
         this.player.victory();
-        this.camMode = 'victory';
+        this.camRig.setMode('victory', { player: this.player });
       }
       if (this.stateTime > (this.won ? 5.5 : 4.5)) this._finish();
     }
 
+    // se lo speciale viene interrotto (vittoria, sconfitta) spegni il raggio e i missili rimasti
     if (this.player.state !== 'special') {
-      this.beam = null;
+      if (this.beam) this.onSpecialEnd(this.player, 'beam');
       this.missileQueue = 0;
     }
-    this.player.update(dt, this.state === 'fight' ? input : NO_INPUT, this);
+
+    const ctl = this.state === 'fight' ? input : null;
+    this.player.update(dt, ctl || { move: { x: 0, y: 0 }, take: () => false, held: {} }, this);
     for (const e of this.enemies) e.update(dt, this);
-    this._resolveCollisions(dt);
+    this._resolveCollisions();
     this._updateProjectiles(dt);
+
     if (this.comboTimer > 0) {
       this.comboTimer -= dt;
       if (this.comboTimer <= 0) this.combo = 0;
     }
+
+    // allarme a bassa energia vitale
     if (this.player.alive && this.player.hp / this.player.maxHp < 0.25 && this.state === 'fight') {
       this.lowHpTimer -= realDt;
       if (this.lowHpTimer <= 0) {
@@ -628,165 +755,63 @@ export class Battle {
         this.message('CORAZZA CRITICA!', 'danger', 1);
       }
     }
+
     this.fx.update(dt);
-    this.stage.update(dt, this.player.x);
-    this._updateCamera(realDt * (this.hitstop > 0 ? 0.3 : 1));
+    this.env.update(dt, this.camera, this.player.pos);
+    this.camRig.update(realDt * (this.hitstop > 0 ? 0.3 : 1), this.player, this.state === 'outro' && !this.won ? null : this.target);
     this.hud.update(realDt);
   }
 
-  _updateCamera(dt) {
-    const cam = this.cam;
-    const p = this.player;
-    const { width, height } = this.app;
-    const aspect = width / height;
-    const T = cam.target;
-    cam.lambda = 3;
-    if (this.camMode === 'intro') {
-      const k = this.enemies[0];
-      T.x = k.x;
-      T.y = 2;
-      T.viewH = 14 + k.size * 5 + this.stateTime * 0.8;
-    } else if (this.camMode === 'finisher' && this.finisher) {
-      const k = this.finisher;
-      T.x = k.x * 0.6 + p.x * 0.4;
-      T.y = 0;
-      T.viewH = Math.max(p.top * 1.3 + 2, Math.abs(k.x - p.x) * 0.7 / aspect + 14);
-      cam.lambda = 2;
-    } else if (this.camMode === 'victory') {
-      T.x = p.x;
-      T.y = 0;
-      T.viewH = Math.max(16, p.top * 1.55 + 2);
-      cam.lambda = 1.5;
-    } else if (this.camMode === 'defeat') {
-      T.x = p.x;
-      T.y = 0;
-      T.viewH = Math.max(16, p.top * 1.4 + 2);
-      cam.lambda = 1.5;
-    } else {
-      const tgt = this.target;
-      const tx = tgt ? tgt.x : p.x + p.facing * 10;
-      const sep = Math.abs(tx - p.x);
-      const tallest = Math.max(p.height, ...this.aliveEnemies.map((e) => e.height + Math.max(0, e.y)));
-      T.x = (p.x + tx) / 2;
-      T.viewH = clamp(Math.max(tallest * 1.55 + 3, (sep + 20) / aspect), 18, 40);
-      T.y = 0;
-      if (this.focus && this.focus.t > 0) {
-        this.focus.t -= dt;
-        T.viewH *= 0.82;
-        T.x = T.x * 0.6 + this.focus.x * 0.4;
-      }
-    }
-    // tieni la camera dentro l'arena
-    const halfW = (cam.viewH * aspect) / 2;
-    T.x = clamp(T.x, -this.arenaHalf - 6 + halfW, this.arenaHalf + 6 - halfW);
-    cam.update(dt);
-  }
-
-  _resolveCollisions(dt) {
-    const p = this.player;
-    const all = [p, ...this.enemies.filter((e) => e.alive && !(e.state === 'active' && e.move?.kind === 'leap'))];
+  _resolveCollisions() {
+    const all = [this.player, ...this.enemies.filter((e) => e.alive && !(e.state === 'active' && e.move?.kind === 'leap'))];
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) {
         const a = all[i];
         const b = all[j];
-        // lo scatto (invulnerabile) e la carica permettono di attraversarsi
-        if (a === p && (p.invuln > 0 && p.state === 'dash')) continue;
-        if (a === p && b.state === 'active' && b.move?.kind === 'charge' && p.invuln > 0) continue;
-        const dx = b.x - a.x;
-        const min = (a.extent ? a.extent(b.x) : a.radius) + (b.extent ? b.extent(a.x) : b.radius);
-        if (Math.abs(dx) < min) {
-          // spinta graduale: quando un Kaiju si gira l'ingombro cambia lato senza scatti
-          const push = Math.min(min - Math.abs(dx), 34 * dt + 0.04);
-          const dir = Math.sign(dx) || (a === p ? -p.facing : 1);
-          const wa = a === p ? 0.7 : 0.5;
-          a.x -= dir * push * wa;
-          b.x += dir * push * (1 - wa);
+        const dx = b.pos.x - a.pos.x;
+        const dz = b.pos.z - a.pos.z;
+        const d = Math.hypot(dx, dz);
+        const min = a.radius + b.radius;
+        if (d < min && d > 0.001) {
+          const push = (min - d) / d;
+          const wa = a === this.player ? 0.7 : 0.5;
+          const wb = 1 - wa;
+          a.pos.x -= dx * push * wa;
+          a.pos.z -= dz * push * wa;
+          b.pos.x += dx * push * wb;
+          b.pos.z += dz * push * wb;
         }
       }
     }
-    for (const f of [p, ...this.enemies]) f.x = clamp(f.x, -this.arenaHalf, this.arenaHalf);
-  }
-
-  // ---------- disegno ----------
-  render(ctx, W, H) {
-    const cam = this.cam;
-    this.stage.drawBack(ctx, cam, W, H);
-    this.fx.drawGround(ctx, cam, W, H);
-    const order = [...this.enemies].sort((a, b) => (a.alive === b.alive ? 0 : a.alive ? 1 : -1));
-    for (const e of order) e.draw(ctx, cam, W, H);
-    this.player.draw(ctx, cam, W, H);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this._drawProjectiles(ctx, W, H);
-    this._drawBeam(ctx, W, H);
-    this.fx.draw(ctx, cam, W, H);
-    // l'acqua davanti copre i piedi; i riflessi si vedono sulla sua superficie
-    const reflect = this.quality.reflections
-      ? () => {
-          for (const e of this.enemies) e.draw(ctx, cam, W, H, { reflection: true });
-          this.player.draw(ctx, cam, W, H, { reflection: true });
-        }
-      : null;
-    this.stage.drawFront(ctx, cam, W, H, reflect);
-  }
-
-  _drawProjectiles(ctx, W, H) {
-    const k = this.cam.ppu(H);
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    for (const pr of this.projectiles) {
-      const [sx, sy] = this.cam.toScreen(pr.x, pr.y, W, H);
-      const s = (pr.kind === 'acid' ? 2.4 : pr.kind === 'missile' ? 1.2 : 2.2) * k;
-      ctx.drawImage(glowSprite(pr.color), sx - s / 2, sy - s / 2, s, s);
-      ctx.drawImage(glowSprite('#ffffff'), sx - s / 6, sy - s / 6, s / 3, s / 3);
-      if (pr.kind === 'missile') {
-        ctx.save();
-        ctx.translate(sx, sy);
-        ctx.rotate(Math.atan2(-pr.vy, pr.vx));
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = '#3a3f48';
-        ctx.fillRect(-k * 0.5, -k * 0.09, k * 0.7, k * 0.18);
-        ctx.fillStyle = '#c8302a';
-        ctx.fillRect(k * 0.2, -k * 0.09, k * 0.15, k * 0.18);
-        ctx.restore();
+    for (const f of [this.player, ...this.enemies]) {
+      const r = Math.hypot(f.pos.x, f.pos.z);
+      if (r > this.arenaRadius) {
+        f.pos.x *= this.arenaRadius / r;
+        f.pos.z *= this.arenaRadius / r;
       }
     }
-    ctx.restore();
   }
 
-  _drawBeam(ctx, W, H) {
-    const b = this.beam;
-    if (!b || b.x === undefined) return;
-    const cam = this.cam;
-    const k = cam.ppu(H);
-    const [x0, y0] = cam.toScreen(b.x, b.y, W, H);
-    const [x1, y1] = cam.toScreen(b.x + b.dx * b.len, b.y + b.dy * b.len, W, H);
-    const ang = Math.atan2(y1 - y0, x1 - x0);
-    const len = Math.hypot(x1 - x0, y1 - y0);
-    const wdt = Math.min(1, b.t * 5) * k * 1.1 * (1 + Math.sin(b.t * 40) * 0.12);
-    const accent = this.player.cfg.colors.accent;
-    ctx.save();
-    ctx.translate(x0, y0);
-    ctx.rotate(ang);
-    ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createLinearGradient(0, -wdt, 0, wdt);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(0.3, accent);
-    g.addColorStop(0.5, '#ffffff');
-    g.addColorStop(0.7, accent);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.globalAlpha = 0.9;
-    ctx.fillRect(0, -wdt, len, wdt * 2);
-    ctx.drawImage(glowSprite(accent), -wdt * 2, -wdt * 2, wdt * 4, wdt * 4);
-    ctx.drawImage(glowSprite(accent), len - wdt * 2.5, -wdt * 2.5, wdt * 5, wdt * 5);
-    ctx.restore();
+  resize() {
+    this.camera.aspect = this.app.aspect;
+    this.camera.updateProjectionMatrix();
+    this.fx.setViewport(this.app.height * this.app.renderer.getPixelRatio());
   }
-
-  resize() {}
 
   dispose() {
     this.ended = true;
     this.hud.dispose();
+    this.player.dispose();
+    this.enemies.forEach((e) => e.dispose());
+    this.projectiles.forEach((p) => {
+      this.scene.remove(p.sprite);
+      p.sprite.material.dispose();
+    });
+    if (this.beam) this.onSpecialEnd(this.player, 'beam');
+    this.fx.dispose();
+    this.env.dispose();
     audio.stopAmbience();
   }
 }
+
+export { CATEGORY_LABEL };

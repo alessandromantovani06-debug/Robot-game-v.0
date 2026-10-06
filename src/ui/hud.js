@@ -1,9 +1,12 @@
+import * as THREE from 'three';
 import { h, button } from './dom.js';
 import { input, isTouchDevice } from '../core/input.js';
 import { audio } from '../core/audio.js';
 import { save } from '../core/save.js';
 import { CATEGORY_LABEL } from '../data/kaiju.js';
+import { getPart } from '../data/parts.js';
 
+const _p = new THREE.Vector3();
 
 const SHORT = {
   wp_fist: 'PUGNO',
@@ -195,7 +198,7 @@ export class Hud {
     this.flashDur = dur;
   }
 
-  damageNumber(x, y, value, crit = false, taken = false) {
+  damageNumber(pos, value, crit = false, taken = false) {
     if (this.numbers.length > 24) {
       const old = this.numbers.shift();
       old.el.remove();
@@ -204,8 +207,7 @@ export class Hud {
     this.numLayer.append(el);
     this.numbers.push({
       el,
-      x,
-      y,
+      pos: pos.clone(),
       t: 0,
       life: 0.9,
       dx: (Math.random() - 0.5) * 40,
@@ -239,7 +241,7 @@ export class Hud {
   startTutorial() {
     const dev = () => (isTouchDevice() && input.lastDevice !== 'keyboard' ? 'touch' : input.lastDevice);
     const txt = {
-      move: { keyboard: 'Muoviti con <b>A</b> / <b>D</b> o le <b>frecce</b>', touch: 'Muoviti trascinando il <b>joystick</b> a sinistra', gamepad: 'Muoviti con lo <b>stick sinistro</b>' },
+      move: { keyboard: 'Muoviti con <b>W A S D</b> o le <b>frecce</b>', touch: 'Muoviti trascinando il <b>joystick</b> a sinistra', gamepad: 'Muoviti con lo <b>stick sinistro</b>' },
       attack: { keyboard: 'Attacca con <b>J</b> (braccio sinistro) e <b>K</b> (destro) — o click sinistro/destro', touch: 'Attacca con i pulsanti <b>SX</b> e <b>DX</b>. Alternali per le combo!', gamepad: 'Attacca con <b>X</b> e <b>Y</b> (□ e △)' },
       block: { keyboard: 'Tieni premuto <b>L</b> o <b>Shift</b> per parare. Quando il mirino diventa <b>bianco</b> para per una <b>PARATA PERFETTA</b>', touch: 'Tieni premuto <b>PARA</b>. Mirino <b>bianco</b> = momento della <b>PARATA PERFETTA</b>', gamepad: 'Tieni premuto <b>LB</b> per parare. Mirino <b>bianco</b> = <b>PARATA PERFETTA</b>' },
       dash: { keyboard: 'Premi <b>Spazio</b> per scattare e schivare', touch: 'Premi <b>SCATTO</b> per schivare gli attacchi', gamepad: 'Premi <b>A</b> (✕) per scattare' },
@@ -252,7 +254,7 @@ export class Hud {
       { id: 'dash', done: (s) => s.dashed },
       { id: 'special', done: (s) => s.special, waitSync: true },
     ];
-    this.tutorial = { steps, i: 0, txt, dev, s: { moved: 0, hits: 0, blocked: false, dashed: false, special: false }, el: null, lastX: this.b.player.x, lastDealt: 0 };
+    this.tutorial = { steps, i: 0, txt, dev, s: { moved: 0, hits: 0, blocked: false, dashed: false, special: false }, el: null, lastPos: this.b.player.pos.clone(), lastDealt: 0 };
     this._showTutorialStep();
   }
 
@@ -273,8 +275,8 @@ export class Hud {
     const T = this.tutorial;
     if (!T) return;
     const p = this.b.player;
-    T.s.moved += Math.abs(p.x - T.lastX);
-    T.lastX = p.x;
+    T.s.moved += p.pos.distanceTo(T.lastPos);
+    T.lastPos.copy(p.pos);
     if (this.b.stats.dmgDealt > T.lastDealt) {
       T.s.hits++;
       T.lastDealt = this.b.stats.dmgDealt;
@@ -385,6 +387,9 @@ export class Hud {
     } else this.flashEl.style.opacity = 0;
 
     // numeri del danno e mirino
+    const cam = b.camera;
+    const W = this.el.clientWidth;
+    const H = this.el.clientHeight;
     for (let i = this.numbers.length - 1; i >= 0; i--) {
       const n = this.numbers[i];
       n.t += dt;
@@ -393,10 +398,18 @@ export class Hud {
         this.numbers.splice(i, 1);
         continue;
       }
-      const [x, y] = b.screenPos(n.x, n.y + n.t * 3);
+      _p.copy(n.pos);
+      _p.y += n.t * 4;
+      _p.project(cam);
+      if (_p.z > 1) {
+        n.el.style.opacity = 0;
+        continue;
+      }
+      const x = (_p.x * 0.5 + 0.5) * W + n.dx * n.t;
+      const y = (-_p.y * 0.5 + 0.5) * H;
       const k = n.t / n.life;
       n.el.style.opacity = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
-      n.el.style.transform = `translate(-50%, -50%) translate(${x + n.dx * n.t}px, ${y}px) scale(${1 + Math.max(0, 0.3 - n.t) * 2})`;
+      n.el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${1 + Math.max(0, 0.3 - n.t) * 2})`;
     }
 
     // segnale per la parata: rosso = attacco in carica, bianco = para adesso
@@ -409,16 +422,19 @@ export class Hud {
     }
     this.reticle.classList.toggle('danger', cue === 'danger');
     this.reticle.classList.toggle('now', cue === 'now');
+
     const tgt = b.fighting ? b.target : null;
     if (tgt) {
-      const [cx, cy] = tgt.point('center');
-      const [x, y] = b.screenPos(cx, cy);
-      this.reticle.style.opacity = '1';
-      this.reticle.style.left = x + 'px';
-      this.reticle.style.top = y + 'px';
+      tgt.centerPosition(_p);
+      _p.project(cam);
+      if (_p.z < 1) {
+        this.reticle.style.opacity = '1';
+        this.reticle.style.left = (_p.x * 0.5 + 0.5) * W + 'px';
+        this.reticle.style.top = (-_p.y * 0.5 + 0.5) * H + 'px';
+      } else this.reticle.style.opacity = '0';
     } else this.reticle.style.opacity = '0';
 
-    if (this.fps) this.fps.textContent = `${Math.round(b.app.fps)} FPS · ${b.app.dpr.toFixed(2)}x`;
+    if (this.fps) this.fps.textContent = `${Math.round(b.app.fps)} FPS · ${b.app.renderer.getPixelRatio().toFixed(2)}x`;
     if (this.tutorial && b.fighting) this._updateTutorial();
     else if (this.tutorial && b.state === 'outro') {
       this.tutorial.el?.remove();
@@ -433,3 +449,4 @@ export class Hud {
   }
 }
 
+export { getPart };

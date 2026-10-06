@@ -1,20 +1,21 @@
 # RIFT TITANS — Difesa Kaiju
 
-Picchiaduro 2D a scorrimento laterale in stile *Pacific Rim*: costruisci e personalizza il tuo robot gigante (un **Titano**) e difendi le città costiere dai **Kaiju** che emergono dalla Frattura nel Pacifico.
+Gioco d'azione 3D in stile *Pacific Rim* con robot alla *Gundam*: costruisci e personalizza il tuo robot gigante (un **Titano**) e difendi le città costiere dai **Kaiju** che emergono dalla Frattura nel Pacifico.
 
-Funziona su **PC** (Windows e Linux) e **Android**. È scritto in JavaScript con il Canvas 2D del browser: robot e Kaiju sono illustrazioni vettoriali dettagliate (corazze con bulloni, pannelli, graffi e luci; squame, venature luminose, denti e artigli) disegnate dal codice e animate pezzo per pezzo. Anche l'audio è generato dal codice, senza file esterni da scaricare.
+Funziona su **PC** (Windows e Linux) e **Android**. È scritto in JavaScript con [Three.js](https://threejs.org/) e ha una grafica in stile anime: ombreggiatura a toni netti (*cel shading*) e contorni neri. I Titani sono costruiti a piastre corazzate su un telaio interno, con antenne a V, prese d'aria, gonne corazzate, zaini con propulsori, sciabole laser e decalcomanie; i Kaiju hanno masse muscolose, placche, file di aculei, denti, artigli e vene luminose. Tutta la grafica e l'audio sono generati dal codice, senza file esterni da scaricare.
 
 ## Caratteristiche
 
 - **Hangar di costruzione**: scegli telaio, testa, torso, braccio sinistro e destro (ognuno con la sua arma), gambe e spalle. Poi vernicia il Titano con colori, finitura, livrea e sigla sulla spalla. Puoi tenere fino a 6 Titani diversi.
 - **27 pezzi** con statistiche diverse. Si sbloccano con i crediti guadagnati in battaglia, e prima dell'acquisto puoi provarli sul robot.
-- **6 armi**: Pugno d'Acciaio, Pugno a Razzo, Spada a Catena, Martello Sismico, Cannone al Plasma, Artigli Elettrici.
+- **5 teste** in stile anime: V-Fin, Monocolo, Elmo Samurai, Ottica Tripla, Corno Unicorno.
+- **6 armi**: Pugno d'Acciaio, Pugno a Razzo, Sciabola Laser, Martello Sismico, Fucile Beam, Artigli Elettrici.
 - **4 mosse speciali** (una per torso): Raggio Nucleare, Salva di Missili, Impulso Tesla, Furia Overdrive.
 - **5 Kaiju** dalla Categoria I alla V: Squalor, Krakos, Viperion, Tonitrus e Leviathan. Ognuno ha attacchi propri: morsi, cariche, sputi acidi, colpi di coda, impulsi EMP e balzi.
 - **Campagna di 10 missioni** in città diverse (Tokyo, Manila, Sydney, Lima, Anchorage, San Francisco, Hong Kong, Vladivostok) fino alla Frattura. Alcune missioni hanno due Kaiju insieme.
 - **Modalità Sopravvivenza** a ondate infinite, con record personale.
 - **Sistema di combattimento**: combo alternando le braccia, parata e **parata perfetta**, scatto con invulnerabilità, sincronia neurale che carica la mossa speciale, Kaiju che si infuriano e possono essere sbilanciati.
-- Scenari a più livelli con parallasse: skyline al neon, riflettori ed elicotteri, pioggia, neve, fulmini, mare con i riflessi dei combattenti. Musica e suoni sintetizzati, annunci vocali in italiano, vibrazione su Android.
+- Città notturne con grattacieli illuminati, insegne al neon, skyline all'orizzonte, riflettori, pioggia, neve, fulmini e oceano animato. Musica e suoni sintetizzati, annunci vocali in italiano, vibrazione su Android.
 - Controlli per **tastiera e mouse**, **touch** (joystick virtuale) e **gamepad**.
 - Si gioca **offline** dopo la prima apertura, e i progressi vengono salvati sul dispositivo.
 
@@ -61,7 +62,7 @@ Crea un tag che inizia con `v` (per esempio da **Releases → Draft a new releas
 
 | Tastiera e mouse | Touch | Gamepad | Azione |
 | --- | --- | --- | --- |
-| A D / frecce ← → | joystick a sinistra | stick sinistro | Movimento |
+| W A S D / frecce | joystick a sinistra | stick sinistro | Movimento |
 | J / click sinistro | SX | X (□) | Attacco braccio sinistro |
 | K / click destro | DX | Y (△) | Attacco braccio destro |
 | L / Shift (tieni premuto) | PARA | LB | Parata |
@@ -70,7 +71,7 @@ Crea un tag che inizia con `v` (per esempio da **Releases → Draft a new releas
 | Q / Tab | ⌖ | RB | Cambia bersaglio |
 | Esc / P | ❚❚ | Start | Pausa |
 
-**Consigli**: para *appena prima* del colpo per una parata perfetta, che stordisce il Kaiju (in parata il Titano si gira da solo verso il Kaiju che attacca). Quando un Kaiju si illumina sta caricando un attacco: le cariche si schivano scattandogli attraverso. Alterna le braccia per allungare le combo.
+**Consigli**: para *appena prima* del colpo per una parata perfetta, che stordisce il Kaiju (in parata il Titano si gira da solo verso il Kaiju che attacca). Quando un Kaiju si illumina sta caricando un attacco: para o scatta di lato. Alterna le braccia per allungare le combo.
 
 ## Sviluppo
 
@@ -91,13 +92,13 @@ npm run icons          # rigenera le icone (richiede Playwright)
 
 ```
 src/
-  main.js              avvio, canvas 2D, qualità grafica adattiva, navigazione
+  main.js              avvio, renderer 3D, qualità grafica adattiva, navigazione
   data/                pezzi dei robot, Kaiju e mosse, missioni, ambientazioni
   core/                salvataggi, audio sintetizzato, input, piattaforma
-  engine/              strumenti di disegno, sprite, scenario a strati, effetti, telecamera 2D
-  art/                 illustrazioni di robot e Kaiju e scheletro per animarle
-  game/                combattimento, IA dei Kaiju, animazioni, scene di menu e hangar
+  render/              stile anime (toni netti e contorni), geometrie, robot, Kaiju, città, effetti, hangar
+  game/                combattimento, IA dei Kaiju, animazioni, telecamera
   ui/                  menu, hangar, HUD di battaglia, controlli touch
+dev/mecha.html         pagina di prova dei modelli (solo sviluppo)
 electron/main.cjs      versione PC
 scripts/               icone e preparazione dei progetti nativi
 .github/workflows/     compilazione automatica per tutte le piattaforme

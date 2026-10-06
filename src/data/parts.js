@@ -40,17 +40,17 @@ export const PARTS = {
     },
   ],
   head: [
-    { id: 'hd_visor', name: 'Visore Ranger', desc: 'Testa standard con visore panoramico.', cost: 0, mods: {} },
-    { id: 'hd_dome', name: 'Cupola Guardian', desc: 'Cabina di pilotaggio blindata.', cost: 400, mods: { hp: 70 } },
-    { id: 'hd_crest', name: 'Elmo Samurai', desc: 'Cresta da guerriero. Aumenta la potenza.', cost: 700, mods: { power: 0.05 } },
-    { id: 'hd_tri', name: 'Ottica Tripla', desc: 'Tre sensori: sincronia neurale più rapida.', cost: 600, mods: { sync: 0.15 } },
-    { id: 'hd_hunter', name: 'Muso Predatore', desc: 'Profilo aerodinamico da caccia.', cost: 900, mods: { speed: 0.05, power: 0.03 } },
+    { id: 'hd_visor', name: 'Testa V-Fin', desc: 'Doppi occhi e antenna a V: la testa classica dei Titani.', cost: 0, mods: {} },
+    { id: 'hd_dome', name: 'Monocolo', desc: 'Cupola blindata con occhio unico su binario.', cost: 400, mods: { hp: 70 } },
+    { id: 'hd_crest', name: 'Elmo Samurai', desc: 'Grande cresta dorata da guerriero. Aumenta la potenza.', cost: 700, mods: { power: 0.05 } },
+    { id: 'hd_tri', name: 'Ottica Tripla', desc: 'Tre sensori e cresta all\'indietro: sincronia più rapida.', cost: 600, mods: { sync: 0.15 } },
+    { id: 'hd_hunter', name: 'Corno Unicorno', desc: 'Corno singolo e visore a fascia, profilo da caccia.', cost: 900, mods: { speed: 0.05, power: 0.03 } },
   ],
   torso: [
     {
       id: 'tr_fission',
       name: 'Reattore a Fissione',
-      desc: 'Nucleo nucleare classico. Speciale: RAGGIO NUCLEARE dal petto.',
+      desc: 'Petto con prese d\'aria e nucleo. Speciale: RAGGIO NUCLEARE dal petto.',
       cost: 0,
       special: 'beam',
       specialName: 'Raggio Nucleare',
@@ -59,7 +59,7 @@ export const PARTS = {
     {
       id: 'tr_plasma',
       name: 'Nucleo al Plasma',
-      desc: 'Energia extra. Speciale: SALVA DI MISSILI a ricerca.',
+      desc: 'Vani lanciamissili nel petto. Speciale: SALVA DI MISSILI a ricerca.',
       cost: 900,
       special: 'missiles',
       specialName: 'Salva di Missili',
@@ -68,7 +68,7 @@ export const PARTS = {
     {
       id: 'tr_tesla',
       name: 'Cuore Tesla',
-      desc: 'Ricarica rapida. Speciale: IMPULSO TESLA che stordisce i Kaiju.',
+      desc: 'Nucleo con anelli rotanti e bobine. Speciale: IMPULSO TESLA che stordisce.',
       cost: 1100,
       special: 'emp',
       specialName: 'Impulso Tesla',
@@ -76,8 +76,8 @@ export const PARTS = {
     },
     {
       id: 'tr_berserk',
-      name: 'Motore Berserker',
-      desc: 'Pura aggressività. Speciale: FURIA OVERDRIVE per 8 secondi.',
+      name: 'Ali Berserker',
+      desc: 'Ali meccaniche e prese incandescenti. Speciale: FURIA OVERDRIVE.',
       cost: 1300,
       special: 'overdrive',
       specialName: 'Furia Overdrive',
@@ -90,33 +90,33 @@ export const PARTS = {
       name: "Pugno d'Acciaio",
       desc: 'Colpi rapidi e affidabili. Ideale per le combo.',
       cost: 0,
-      weapon: { type: 'melee', dmg: 42, range: 5.0, arc: 55, windup: 0.16, active: 0.08, recovery: 0.26, poise: 10, energy: 0, knock: 1.5 },
+      weapon: { type: 'melee', dmg: 42, range: 6, arc: 55, windup: 0.16, active: 0.08, recovery: 0.26, poise: 10, energy: 0, knock: 1.5 },
     },
     {
       id: 'wp_rocket',
       name: 'Pugno a Razzo',
-      desc: 'Pugno spinto da propulsori nel gomito. Colpo pesante.',
+      desc: 'Avambraccio con propulsori: il classico pugno dei super robot.',
       cost: 500,
-      weapon: { type: 'melee', dmg: 88, range: 5.4, arc: 50, windup: 0.4, active: 0.1, recovery: 0.38, poise: 30, energy: 12, knock: 4, thruster: true },
+      weapon: { type: 'melee', dmg: 88, range: 6.4, arc: 50, windup: 0.4, active: 0.1, recovery: 0.38, poise: 30, energy: 12, knock: 4, thruster: true },
     },
     {
       id: 'wp_chainsword',
-      name: 'Spada a Catena',
-      desc: 'Lama segmentata con grande portata e arco ampio.',
+      name: 'Sciabola Laser',
+      desc: 'Lama di energia con grande portata e arco ampio.',
       cost: 900,
-      weapon: { type: 'melee', dmg: 60, range: 8.3, arc: 80, windup: 0.26, active: 0.12, recovery: 0.34, poise: 16, energy: 4, knock: 2, slash: true },
+      weapon: { type: 'melee', dmg: 60, range: 8.6, arc: 80, windup: 0.26, active: 0.12, recovery: 0.34, poise: 16, energy: 4, knock: 2, slash: true },
     },
     {
       id: 'wp_hammer',
       name: 'Martello Sismico',
       desc: 'Lento ma rompe la guardia. Genera un\'onda d\'urto.',
       cost: 1100,
-      weapon: { type: 'melee', dmg: 118, range: 6.4, arc: 60, windup: 0.55, active: 0.1, recovery: 0.52, poise: 45, energy: 15, knock: 5, shockwave: 5 },
+      weapon: { type: 'melee', dmg: 118, range: 7, arc: 60, windup: 0.55, active: 0.1, recovery: 0.52, poise: 45, energy: 15, knock: 5, shockwave: 5 },
     },
     {
       id: 'wp_plasma',
-      name: 'Cannone al Plasma',
-      desc: 'Arma a distanza. Consuma energia del reattore.',
+      name: 'Fucile Beam',
+      desc: 'Fucile a raggi tenuto in mano. Consuma energia del reattore.',
       cost: 800,
       weapon: { type: 'ranged', dmg: 56, range: 60, arc: 0, windup: 0.22, active: 0.05, recovery: 0.3, poise: 12, energy: 18, knock: 1.5, speed: 70 },
     },
@@ -125,7 +125,7 @@ export const PARTS = {
       name: 'Artigli Elettrici',
       desc: 'Doppio colpo fulmineo. Aumenta la sincronia.',
       cost: 700,
-      weapon: { type: 'melee', dmg: 27, hits: 2, range: 6.6, arc: 60, windup: 0.11, active: 0.12, recovery: 0.2, poise: 8, energy: 2, knock: 1, syncBonus: 0.5 },
+      weapon: { type: 'melee', dmg: 27, hits: 2, range: 5.6, arc: 60, windup: 0.11, active: 0.12, recovery: 0.2, poise: 8, energy: 2, knock: 1, syncBonus: 0.5 },
     },
   ],
   legs: [
@@ -135,11 +135,11 @@ export const PARTS = {
     { id: 'lg_thrust', name: 'Propulsori Jet', desc: 'Razzi nei polpacci: scatti molto più lunghi.', cost: 1000, mods: { dash: 0.45, speed: 0.04 } },
   ],
   shoulders: [
-    { id: 'sh_std', name: 'Spalle Standard', desc: 'Spallacci di serie.', cost: 0, mods: {} },
-    { id: 'sh_plate', name: 'Piastre Titaniche', desc: 'Corazze extra sulle spalle.', cost: 500, mods: { hp: 110, speed: -0.03 } },
-    { id: 'sh_vents', name: 'Turbine di Raffreddamento', desc: 'Il reattore si ricarica più in fretta.', cost: 600, mods: { regen: 0.3 } },
+    { id: 'sh_std', name: 'Spallacci Standard', desc: 'Blocchi corazzati di serie con la sigla del Titano.', cost: 0, mods: {} },
+    { id: 'sh_plate', name: 'Lamelle Titaniche', desc: 'Corazze a lamelle sovrapposte.', cost: 500, mods: { hp: 110, speed: -0.03 } },
+    { id: 'sh_vents', name: 'Propulsori Dorsali', desc: 'Ugelli e prese d\'aria: il reattore si ricarica più in fretta.', cost: 600, mods: { regen: 0.3 } },
     { id: 'sh_missile', name: 'Pod Missilistici', desc: 'Potenziano l\'attacco speciale.', cost: 900, mods: { special: 0.25 } },
-    { id: 'sh_antenna', name: 'Antenne Neurali', desc: 'Sincronia neurale molto più rapida.', cost: 700, mods: { sync: 0.25 } },
+    { id: 'sh_antenna', name: 'Spallacci Chiodati', desc: 'Corazza arrotondata con chiodi. Sincronia molto più rapida.', cost: 700, mods: { sync: 0.25 } },
   ],
 };
 
@@ -158,6 +158,10 @@ export const PATTERNS = [
 ];
 
 export const COLOR_PRESETS = [
+  { name: 'Federazione', primary: '#e9edf2', secondary: '#2a4b9a', accent: '#46e8ff' },
+  { name: 'Cometa Rossa', primary: '#c2343b', secondary: '#6b1d22', accent: '#ff3df5' },
+  { name: 'Unicorno', primary: '#f1f3f6', secondary: '#c9d1da', accent: '#ff2a55' },
+  { name: 'Banshee', primary: '#1d1f24', secondary: '#c8a03c', accent: '#ff3a3a' },
   { name: 'Tempesta Blu', primary: '#2f5f9e', secondary: '#c9d1da', accent: '#3fd2ff' },
   { name: 'Rosso Cremisi', primary: '#a3242b', secondary: '#2a2d33', accent: '#ffb030' },
   { name: 'Oro Imperiale', primary: '#c8a03c', secondary: '#3b2f2a', accent: '#ff5a1f' },
@@ -169,8 +173,8 @@ export const COLOR_PRESETS = [
 ];
 
 export const SWATCHES = [
-  '#2f5f9e', '#1d3a66', '#a3242b', '#d8641e', '#c8a03c', '#e0c35a', '#4d5a32', '#2e6b4a',
-  '#dfe4ea', '#8c96a3', '#4a4f58', '#202329', '#4b2a7a', '#7a1f4f', '#1f6f7a', '#5a3a22',
+  '#e9edf2', '#2a4b9a', '#2f5f9e', '#1d3a66', '#c2343b', '#a3242b', '#6b1d22', '#d8641e', '#c8a03c', '#e0c35a',
+  '#4d5a32', '#2e6b4a', '#8c96a3', '#4a4f58', '#1d1f24', '#4b2a7a', '#7a1f4f', '#1f6f7a',
 ];
 
 export const ACCENT_SWATCHES = [
@@ -200,9 +204,9 @@ export const DEFAULT_ROBOT = {
   armR: 'wp_fist',
   legs: 'lg_std',
   shoulders: 'sh_std',
-  colors: { primary: '#2f5f9e', secondary: '#c9d1da', accent: '#3fd2ff' },
-  finish: 'metal',
-  pattern: 'stripes',
+  colors: { primary: '#e9edf2', secondary: '#2a4b9a', accent: '#46e8ff' },
+  finish: 'satin',
+  pattern: 'none',
 };
 
 /** Calcola le statistiche di combattimento di un robot dalla sua configurazione. */
