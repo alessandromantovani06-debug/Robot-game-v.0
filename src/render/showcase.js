@@ -239,7 +239,7 @@ export class HangarView {
     const coneMat = new THREE.ShaderMaterial({
       uniforms: { color: { value: new THREE.Color('#bcd4ff') } },
       vertexShader: 'varying float vY; void main(){ vY = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'uniform vec3 color; varying float vY; void main(){ float a = pow(vY, 1.5) * 0.09; gl_FragColor = vec4(color * a, a); }',
+      fragmentShader: 'uniform vec3 color; varying float vY; void main(){ float a = pow(clamp(vY, 0.0, 1.0), 1.5) * 0.09; gl_FragColor = vec4(color * a, a); }',
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,

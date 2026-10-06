@@ -436,6 +436,10 @@ export class Hud {
 
     if (this.fps) this.fps.textContent = `${Math.round(b.app.fps)} FPS · ${b.app.renderer.getPixelRatio().toFixed(2)}x`;
     if (this.tutorial && b.fighting) this._updateTutorial();
+    else if (this.tutorial && b.state === 'outro') {
+      this.tutorial.el?.remove();
+      this.tutorial = null;
+    }
     const hideUi = !b.fighting && b.state !== 'between';
     if (this.touchEl) this.touchEl.style.display = hideUi ? 'none' : '';
   }

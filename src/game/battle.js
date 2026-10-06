@@ -719,9 +719,15 @@ export class Battle {
     } else if (this.state === 'outro') {
       if (this.won && this.stateTime > 1.8 && this.player.state !== 'victory') {
         this.player.victory();
-        this.camRig.setMode('victory');
+        this.camRig.setMode('victory', { player: this.player });
       }
       if (this.stateTime > (this.won ? 5.5 : 4.5)) this._finish();
+    }
+
+    // se lo speciale viene interrotto (vittoria, sconfitta) spegni il raggio e i missili rimasti
+    if (this.player.state !== 'special') {
+      if (this.beam) this.onSpecialEnd(this.player, 'beam');
+      this.missileQueue = 0;
     }
 
     const ctl = this.state === 'fight' ? input : null;

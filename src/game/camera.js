@@ -35,6 +35,11 @@ export class CameraRig {
     this.mode = mode;
     this.modeTime = 0;
     this.data = data;
+    if (mode === 'victory' && data.player) {
+      // parte dall'angolo attuale cosi' la camera gira attorno al Titano senza attraversarlo
+      const p = data.player.pos;
+      this.orbit = Math.atan2(this.pos.x - p.x, this.pos.z - p.z) - 2.6;
+    }
   }
 
   get yaw() {
@@ -121,6 +126,16 @@ export class CameraRig {
     this.pos.x = damp(this.pos.x, desired.x, posLambda, dt);
     this.pos.y = damp(this.pos.y, desired.y, posLambda, dt);
     this.pos.z = damp(this.pos.z, desired.z, posLambda, dt);
+    // non entrare mai dentro il Titano
+    const dx = this.pos.x - player.pos.x;
+    const dz = this.pos.z - player.pos.z;
+    const d = Math.hypot(dx, dz);
+    const minD = 9;
+    if (d < minD && this.pos.y < player.height + 3) {
+      const k = d > 0.01 ? minD / d : 1;
+      this.pos.x = player.pos.x + (d > 0.01 ? dx : 1) * k;
+      this.pos.z = player.pos.z + (d > 0.01 ? dz : 0) * k;
+    }
     this.look.x = damp(this.look.x, look.x, lookLambda, dt);
     this.look.y = damp(this.look.y, look.y, lookLambda, dt);
     this.look.z = damp(this.look.z, look.z, lookLambda, dt);

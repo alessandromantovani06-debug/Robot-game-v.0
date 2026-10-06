@@ -86,6 +86,10 @@ class App {
     r.setPixelRatio(this.pixelRatio);
     r.setSize(this.width, this.height);
     this.renderer = r;
+    // sui telefoni il sistema puo' togliere la GPU al gioco (es. in background):
+    // al ripristino si ricarica la pagina (i progressi sono gia' salvati)
+    this.canvas.addEventListener('webglcontextlost', (e) => e.preventDefault());
+    this.canvas.addEventListener('webglcontextrestored', () => location.reload());
 
     if (q.bloom) {
       this.composer = new EffectComposer(r);

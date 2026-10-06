@@ -195,7 +195,7 @@ export class Environment {
           vec3 N = normalize(vec3(-g.x - detail.x, 1.0, -g.y - detail.y));
           vec3 V = normalize(cameraPosition - vWorld);
           vec3 R = reflect(-V, N);
-          float fres = pow(1.0 - max(dot(N, V), 0.0), 4.0);
+          float fres = pow(clamp(1.0 - dot(N, V), 0.0, 1.0), 4.0);
           vec3 refl = mix(horizonColor*0.55, skyColor*0.8, clamp(R.y*2.5, 0.0, 1.0));
           refl += cityGlow * 0.12 * pow(1.0 - clamp(R.y,0.0,1.0), 8.0);
           vec3 col = mix(waterColor, refl, fres*0.7 + 0.04);
@@ -423,7 +423,7 @@ export class Environment {
         void main(){ vY = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: /* glsl */ `
         uniform vec3 color; varying float vY;
-        void main(){ float a = pow(1.0 - vY, 1.6) * 0.16; gl_FragColor = vec4(color * a, a); }`,
+        void main(){ float a = pow(clamp(1.0 - vY, 0.0, 1.0), 1.6) * 0.16; gl_FragColor = vec4(color * a, a); }`,
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
