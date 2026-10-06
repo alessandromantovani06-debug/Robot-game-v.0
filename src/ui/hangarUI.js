@@ -131,10 +131,13 @@ export class HangarUI {
     const savedBars = statBars(this.saved);
     const bars = statBars(this.display);
     const torso = getPart(this.display.torso);
+    name.style.flex = '2';
+    code.style.flex = '1';
+    code.style.minWidth = '0';
+    name.style.minWidth = '0';
     p.append(
-      h('label', {}, 'NOME TITANO'),
-      name,
-      h('div', { class: 'row' }, h('div', { style: { flex: 1 } }, h('label', {}, 'SIGLA'), code)),
+      h('label', {}, 'NOME TITANO · SIGLA'),
+      h('div', { class: 'row' }, name, code),
       ...bars.map((b, i) => statRow(b, b.norm - savedBars[i].norm)),
       h('div', { class: 'special-info' }, '★ ' + torso.specialName),
       h(

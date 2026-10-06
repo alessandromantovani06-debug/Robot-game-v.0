@@ -64,8 +64,10 @@ export function panelTexture(base, second, pattern = 'none', key = '') {
   // livrea
   if (pattern === 'stripes') {
     g.fillStyle = second;
-    g.fillRect(0, S * 0.12, S, S * 0.07);
-    g.fillRect(0, S * 0.22, S, S * 0.025);
+    g.fillRect(0, S * 0.1, S, S * 0.045);
+    g.globalAlpha = 0.7;
+    g.fillRect(0, S * 0.17, S, S * 0.015);
+    g.globalAlpha = 1;
   } else if (pattern === 'hazard') {
     g.save();
     g.beginPath();

@@ -166,8 +166,8 @@ export class Hud {
     };
     const v = (n) => `calc(${n}vmin + var(--safe-r))`;
     const vb = (n) => `calc(${n}vmin + var(--safe-b))`;
-    mk(`DX<br><small>${SHORT[p.cfg.armR] || ''}</small>`, 'right', 'atk', { right: v(3), bottom: vb(7) });
-    mk(`SX<br><small>${SHORT[p.cfg.armL] || ''}</small>`, 'left', 'atk', { right: v(20), bottom: vb(3) });
+    mk(`DX<small>${SHORT[p.cfg.armR] || ''}</small>`, 'right', 'atk', { right: v(3), bottom: vb(7) });
+    mk(`SX<small>${SHORT[p.cfg.armL] || ''}</small>`, 'left', 'atk', { right: v(20), bottom: vb(3) });
     mk('PARA', 'block', 'mid block', { right: v(36), bottom: vb(15) });
     mk('SCATTO', 'dash', 'mid dash', { right: v(4), bottom: vb(25) });
     this.specialBtn = mk('SPEC.', 'special', 'mid special', { right: v(19), bottom: vb(22) });

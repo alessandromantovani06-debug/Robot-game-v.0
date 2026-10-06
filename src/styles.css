@@ -1413,7 +1413,7 @@ kbd {
 .tutorial {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--safe-b) + 18%);
+  top: calc(var(--safe-t) + clamp(56px, 13vh, 110px));
   transform: translateX(-50%);
   padding: 8px 18px;
   font-family: 'Rajdhani', sans-serif;
@@ -1480,6 +1480,7 @@ kbd {
   font-size: clamp(8px, 1.4vmin + 2px, 13px);
   letter-spacing: 0.05em;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -1488,6 +1489,12 @@ kbd {
   touch-action: none;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   transition: transform 0.05s, background 0.1s;
+}
+
+.tbtn small {
+  font-size: 0.7em;
+  opacity: 0.8;
+  margin-top: 2px;
 }
 
 .tbtn.down {

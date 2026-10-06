@@ -41,6 +41,10 @@ const SPECIAL_TIMING = {
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
+const _tmp = new THREE.Vector3();
+const _tmp2 = new THREE.Vector3();
+
+const TRAIL_LENGTH = { wp_chainsword: 4.8, wp_claws: 2.6, wp_hammer: 2.4 };
 
 function blendInto(target, pose, w) {
   for (const k in pose) target[k] = lerp(target[k] ?? 0, pose[k], w);
@@ -250,7 +254,7 @@ export class RobotFighter {
   update(dt, ctl, B) {
     this.time += dt;
     this.invuln = Math.max(0, this.invuln - dt);
-    this.hitFlash = Math.max(0, this.hitFlash - dt * 4);
+    this.hitFlash = Math.max(0, this.hitFlash - dt * 6);
     if (this.overdrive > 0) {
       this.overdrive -= dt;
       if (this.overdrive <= 0) B?.message('OVERDRIVE TERMINATO', 'info', 1);
@@ -382,6 +386,20 @@ export class RobotFighter {
           this.vel.addScaledVector(_v, w.type === 'ranged' ? -3 : 7);
         }
         B?.onPlayerStrike(this, a.arm, w, h);
+      }
+    }
+    // scia luminosa delle armi da taglio
+    const trailLen = TRAIL_LENGTH[this.weaponIds[a.arm]];
+    if (B && trailLen && a.t > a.windup * 0.7 && a.t < a.windup + a.active + 0.06) {
+      const j = this.model.joints;
+      const hand = a.arm === 'L' ? j.handL : j.handR;
+      const elbow = a.arm === 'L' ? j.elL : j.elR;
+      hand.getWorldPosition(_v);
+      elbow.getWorldPosition(_tmp);
+      _tmp.subVectors(_v, _tmp).normalize();
+      for (let k = 1; k <= 4; k++) {
+        _tmp2.copy(_v).addScaledVector(_tmp, (trailLen * k) / 4);
+        B.fx.trail(_tmp2, this.cfg.colors.accent, 0.5 + k * 0.15, 0.22);
       }
     }
     // combo: prenota l'attacco successivo durante il recupero
@@ -609,7 +627,7 @@ export class RobotFighter {
     }
     const f = this.hitFlash;
     for (const mat of m.bodyMaterials) {
-      mat.emissive.setRGB(0.9 * f, 0.25 * f, 0.1 * f);
+      mat.emissive.setRGB(0.5 * f, 0.12 * f, 0.04 * f);
     }
     // fiammelle dei propulsori
     const flick = 0.85 + Math.random() * 0.3;
