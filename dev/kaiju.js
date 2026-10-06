@@ -1,0 +1,35 @@
+import { buildKaijuArt } from '../src/art/kaijuArt.js';
+import { solveKaiju, drawKaiju } from '../src/art/rig.js';
+import { KAIJU } from '../src/data/kaiju.js';
+
+const params = new URLSearchParams(location.search);
+const W = +(params.get('w') || 1600);
+const H = +(params.get('h') || 900);
+const c = document.getElementById('c');
+c.width = W;
+c.height = H;
+const ctx = c.getContext('2d');
+const g = ctx.createLinearGradient(0, 0, 0, H);
+g.addColorStop(0, '#1a2440');
+g.addColorStop(1, '#070a12');
+ctx.fillStyle = g;
+ctx.fillRect(0, 0, W, H);
+const types = params.get('only') ? [params.get('only')] : Object.keys(KAIJU);
+const ppu = +(params.get('ppu') || (types.length === 1 ? 55 : 22));
+const t0 = performance.now();
+types.forEach((t, i) => {
+  const def = KAIJU[t];
+  const art = buildKaijuArt(def, Math.round(ppu * 1.2));
+  const tail = art.sprites.tail.map((_, k) => 0.05 + Math.sin(k * 0.6) * 0.06);
+  const pincer = def.body.arms === 'pincers';
+  const J = solveKaiju(art, { lean: 0, neck: 0, jaw: 0.25, armF: pincer ? 1.0 : 0.4, elbF: pincer ? 1.6 : 0.6, armB: pincer ? 0.8 : 0.25, elbB: pincer ? 1.5 : 0.5, tail, pinch: 0.3 });
+  const x = types.length === 1 ? W * 0.5 : W * (0.12 + (i % 3) * 0.33);
+  const y = types.length === 1 ? H * 0.9 : H * (i < 3 ? 0.45 : 0.95);
+  const s = ppu * def.size;
+  drawKaiju(ctx, art, J, [s, 0, 0, s, x, y], { aura: 0.3 });
+});
+ctx.setTransform(1, 0, 0, 1, 0, 0);
+ctx.fillStyle = '#fff';
+ctx.font = '14px sans-serif';
+ctx.fillText(`build+draw ${Math.round(performance.now() - t0)} ms`, 10, 20);
+window.__done = true;

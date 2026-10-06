@@ -2,7 +2,7 @@ import { h, button, clear, formatCredits, formatTime, stars, modal, toast, statR
 import { save } from '../core/save.js';
 import { audio } from '../core/audio.js';
 import { isTouchDevice } from '../core/input.js';
-import { isIOS, isAndroid, isStandalone, enterFullscreen } from '../core/platform.js';
+import { isAndroid, isStandalone, enterFullscreen } from '../core/platform.js';
 import { MISSIONS } from '../data/missions.js';
 import { KAIJU, CATEGORY_LABEL } from '../data/kaiju.js';
 import { statBars, getPart } from '../data/parts.js';
@@ -356,7 +356,7 @@ export class Screens {
       h(
         'div',
         { class: 'help-grid' },
-        h('div', {}, h('h3', {}, 'TASTIERA E MOUSE'), keys([['W A S D', 'Movimento'], ['J', 'Braccio sinistro (click sx)'], ['K', 'Braccio destro (click dx)'], ['L', 'Parata (tieni premuto)'], ['Spazio', 'Scatto / schivata'], ['E', 'Mossa speciale'], ['Q', 'Cambia bersaglio'], ['Esc', 'Pausa']])),
+        h('div', {}, h('h3', {}, 'TASTIERA E MOUSE'), keys([['A D / ← →', 'Movimento'], ['J', 'Braccio sinistro (click sx)'], ['K', 'Braccio destro (click dx)'], ['L', 'Parata (tieni premuto)'], ['Spazio', 'Scatto / schivata'], ['E', 'Mossa speciale'], ['Q', 'Cambia bersaglio'], ['Esc', 'Pausa']])),
         h('div', {}, h('h3', {}, 'TOUCH'), keys([['Joystick', 'Trascina a sinistra per muoverti'], ['SX DX', 'Attacchi con le due braccia'], ['PARA', 'Tieni premuto per parare'], ['SCATTO', 'Schivata rapida'], ['SPEC.', 'Mossa speciale'], ['⌖', 'Cambia bersaglio']])),
         h('div', {}, h('h3', {}, 'GAMEPAD'), keys([['Stick', 'Movimento'], ['X Y', 'Braccio sinistro / destro'], ['LB', 'Parata'], ['A', 'Scatto'], ['B', 'Speciale'], ['RB', 'Cambia bersaglio'], ['Start', 'Pausa']])),
       ),
@@ -365,7 +365,7 @@ export class Screens {
         'ul',
         { class: 'tips' },
         h('li', {}, 'Para appena prima dell\'impatto per una PARATA PERFETTA: il Kaiju resta stordito. Il mirino diventa rosso quando il Kaiju carica un colpo e bianco quando è il momento di parare.'),
-        h('li', {}, 'Quando un Kaiju brilla sta caricando un attacco: scatta di lato o para.'),
+        h('li', {}, 'Quando un Kaiju brilla sta caricando un attacco: para, oppure scatta attraverso di lui per schivarlo.'),
         h('li', {}, 'Gli attacchi pesanti (Pugno a Razzo, Martello) sbilanciano i Kaiju più in fretta.'),
         h('li', {}, 'Il Cannone al Plasma consuma il reattore: tieni d\'occhio la barra gialla.'),
         h('li', {}, 'Ogni torso ha una mossa speciale diversa. Provale tutte nell\'hangar!'),
@@ -387,14 +387,7 @@ export class Screens {
       return;
     }
     let steps;
-    if (isIOS()) {
-      steps = [
-        'Apri questa pagina con Safari.',
-        'Tocca il pulsante Condividi (il quadrato con la freccia verso l\'alto).',
-        'Scegli "Aggiungi alla schermata Home" e conferma.',
-        'Avvia Rift Titans dall\'icona: si aprirà a schermo intero e funzionerà anche offline.',
-      ];
-    } else if (isAndroid()) {
+    if (isAndroid()) {
       steps = [
         'Apri questa pagina con Chrome.',
         'Tocca il menu ⋮ in alto a destra.',
@@ -404,7 +397,7 @@ export class Screens {
     } else {
       steps = [
         'Con Chrome o Edge: clicca l\'icona di installazione nella barra degli indirizzi (monitor con freccia) oppure Menu → "Installa Rift Titans".',
-        'In alternativa scarica la versione per Windows, macOS o Linux dalla pagina Releases del progetto su GitHub.',
+        'In alternativa scarica la versione per Windows o Linux dalla pagina Releases del progetto su GitHub.',
       ];
     }
     const m = modal(this.root, 'INSTALLA RIFT TITANS', [h('ol', { class: 'tips' }, steps.map((s) => h('li', {}, s)))], [button('Ho capito', () => m.remove(), 'primary')]);

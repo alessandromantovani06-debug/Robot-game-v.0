@@ -1,7 +1,7 @@
 # Compila Rift Titans per tutte le piattaforme:
-#  - Web / PWA (installabile da browser su Android, iPhone/iPad e PC) -> GitHub Pages
+#  - Web / PWA (installabile da browser su Android e PC) -> GitHub Pages
 #  - Android (APK)
-#  - PC: Windows (.exe), macOS (.dmg), Linux (.AppImage)
+#  - PC: Windows (.exe) e Linux (.AppImage)
 # Creando un tag "v*" (es. v1.0.0) i file vengono pubblicati in una Release.
 name: Build
 
@@ -96,9 +96,6 @@ jobs:
           - os: windows-latest
             name: Windows
             target: --win
-          - os: macos-latest
-            name: macOS
-            target: --mac
           - os: ubuntu-latest
             name: Linux
             target: --linux
@@ -120,7 +117,6 @@ jobs:
           name: RiftTitans-${{ matrix.name }}
           path: |
             release/*.exe
-            release/*.dmg
             release/*.AppImage
           if-no-files-found: error
 
@@ -144,6 +140,5 @@ jobs:
             ## Come installare
             - **Android**: scarica `RiftTitans-android.apk`, aprilo e consenti l'installazione da origini sconosciute.
             - **Windows**: `RiftTitans-Setup-*.exe` (installer) oppure `RiftTitans-Portable-*.exe` (senza installazione).
-            - **macOS**: apri il `.dmg` e trascina Rift Titans in Applicazioni (al primo avvio: tasto destro → Apri).
             - **Linux**: rendi eseguibile il file `.AppImage` e avvialo.
-            - **iPhone / iPad**: apri la versione web con Safari → Condividi → "Aggiungi alla schermata Home".
+            - **Da browser** (Android o PC): apri la versione web e scegli "Installa app".

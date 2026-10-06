@@ -6,9 +6,5 @@
   "android": {
     "allowMixedContent": false,
     "webContentsDebuggingEnabled": false
-  },
-  "ios": {
-    "contentInset": "never",
-    "backgroundColor": "#04060c"
   }
 }

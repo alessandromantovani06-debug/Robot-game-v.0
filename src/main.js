@@ -1,22 +1,18 @@
 import './styles.css';
-import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { save } from './core/save.js';
 import { audio } from './core/audio.js';
 import { input, isTouchDevice } from './core/input.js';
-import { MenuView, HangarView } from './render/showcase.js';
+import { MenuView, HangarView } from './game/views.js';
 import { Battle } from './game/battle.js';
 import { MISSIONS, survivalWave } from './data/missions.js';
 import { Screens } from './ui/screens.js';
 import { isElectron } from './core/platform.js';
 
+// Qualita' grafica: densita' di pixel, risoluzione dei disegni, particelle, pioggia, riflessi.
 const QUALITY = {
-  low: { level: 'low', maxPixelRatio: 0.85, shadows: false, bloom: false, rain: 1200, particles: 0.5, antialias: false },
-  medium: { level: 'medium', maxPixelRatio: 1.25, shadows: false, bloom: true, rain: 2600, particles: 0.8, antialias: true },
-  high: { level: 'high', maxPixelRatio: 2, shadows: true, bloom: true, rain: 4500, particles: 1, antialias: true },
+  low: { level: 'low', dprCap: 1, spriteRes: 44, particles: 0.5, rain: 0.45, reflections: false },
+  medium: { level: 'medium', dprCap: 1.5, spriteRes: 60, particles: 0.8, rain: 0.75, reflections: true },
+  high: { level: 'high', dprCap: 2, spriteRes: 76, particles: 1, rain: 1, reflections: true },
 };
 
 const isMobile = () => isTouchDevice() && Math.min(screen.width, screen.height) < 900;
@@ -29,18 +25,17 @@ export function resolveQuality(setting) {
 class App {
   constructor() {
     this.canvas = document.getElementById('game');
+    this.ctx = this.canvas.getContext('2d', { alpha: false });
     this.ui = document.getElementById('ui');
     this.quality = resolveQuality(save.settings.quality);
-    this.width = window.innerWidth;
-    this.height = window.innerHeight;
     this.view = null;
     this.fps = 60;
     this.frameAvg = 16;
     this.adaptTimer = 0;
     this.deferredInstall = null;
+    this.dprScale = 1;
     if (isTouchDevice()) document.body.classList.add('touch-device');
-
-    this._createRenderer();
+    this.resize();
     this.applySettings();
     input.bindMouse(this.canvas);
     this.screens = new Screens(this);
@@ -59,48 +54,14 @@ class App {
       this.screens.refreshInstall?.();
     });
 
-    this.clock = new THREE.Clock();
     this.setView(new MenuView(this, save.activeRobot));
     this.screens.title();
+    this.last = performance.now();
     this._loop = this._loop.bind(this);
     requestAnimationFrame(this._loop);
     const boot = document.getElementById('boot');
     boot.style.opacity = '0';
     setTimeout(() => boot.remove(), 700);
-  }
-
-  _createRenderer() {
-    const q = this.quality;
-    const r = new THREE.WebGLRenderer({
-      canvas: this.canvas,
-      antialias: q.antialias,
-      powerPreference: 'high-performance',
-      stencil: false,
-    });
-    r.outputColorSpace = THREE.SRGBColorSpace;
-    r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.0;
-    r.shadowMap.enabled = q.shadows;
-    r.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.pixelRatio = Math.min(window.devicePixelRatio || 1, q.maxPixelRatio);
-    r.setPixelRatio(this.pixelRatio);
-    r.setSize(this.width, this.height);
-    this.renderer = r;
-    // sui telefoni il sistema puo' togliere la GPU al gioco (es. in background):
-    // al ripristino si ricarica la pagina (i progressi sono gia' salvati)
-    this.canvas.addEventListener('webglcontextlost', (e) => e.preventDefault());
-    this.canvas.addEventListener('webglcontextrestored', () => location.reload());
-
-    if (q.bloom) {
-      this.composer = new EffectComposer(r);
-      this.renderPass = new RenderPass(new THREE.Scene(), new THREE.PerspectiveCamera());
-      this.bloom = new UnrealBloomPass(new THREE.Vector2(this.width / 2, this.height / 2), 0.7, 0.45, 0.92);
-      this.composer.addPass(this.renderPass);
-      this.composer.addPass(this.bloom);
-      this.composer.addPass(new OutputPass());
-      this.composer.setPixelRatio(this.pixelRatio);
-      this.composer.setSize(this.width, this.height);
-    }
   }
 
   get aspect() {
@@ -117,24 +78,15 @@ class App {
   resize() {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
-    this.renderer.setSize(this.width, this.height);
-    if (this.composer) {
-      this.composer.setSize(this.width, this.height);
-      this.bloom.resolution.set(this.width / 2, this.height / 2);
-    }
-    if (this.view) {
-      this.view.camera.aspect = this.aspect;
-      this.view.camera.updateProjectionMatrix();
-      this.view.resize?.();
-    }
+    this.dpr = Math.min(window.devicePixelRatio || 1, this.quality.dprCap) * this.dprScale;
+    this.canvas.width = Math.round(this.width * this.dpr);
+    this.canvas.height = Math.round(this.height * this.dpr);
+    this.view?.resize?.();
   }
 
   setView(view) {
-    if (this.view && this.view !== view) this.view.dispose();
+    if (this.view && this.view !== view) this.view.dispose?.();
     this.view = view;
-    view.camera.aspect = this.aspect;
-    view.camera.updateProjectionMatrix();
-    view.resize?.();
   }
 
   // ---------- navigazione ----------
@@ -179,12 +131,7 @@ class App {
     const { mission, mode } = this.lastLaunch;
     this.screens.clear();
     audio.stopAmbience();
-    const battle = new Battle(this, {
-      mission,
-      robot: save.activeRobot,
-      mode,
-      onEnd: (result) => this.screens.results(result),
-    });
+    const battle = new Battle(this, { mission, robot: save.activeRobot, mode, onEnd: (result) => this.screens.results(result) });
     this.setView(battle);
     window.__battle = battle;
   }
@@ -207,10 +154,11 @@ class App {
     this.screens.help();
   }
 
-  // ---------- ciclo di rendering ----------
-  _loop() {
+  // ---------- ciclo principale ----------
+  _loop(now) {
     requestAnimationFrame(this._loop);
-    const raw = this.clock.getDelta();
+    const raw = Math.max(0, (now - this.last) / 1000);
+    this.last = now;
     const dt = Math.min(raw, 0.05);
     this.frameAvg = this.frameAvg * 0.95 + Math.min(raw, 0.1) * 1000 * 0.05;
     this.fps = 1000 / this.frameAvg;
@@ -218,28 +166,26 @@ class App {
     const view = this.view;
     if (!view) return;
     view.update(dt);
-    if (this.composer) {
-      this.renderPass.scene = view.scene;
-      this.renderPass.camera = view.camera;
-      this.composer.render(dt);
-    } else this.renderer.render(view.scene, view.camera);
+    // prima del disegno: ridimensionare il canvas lo svuota
     this._adapt(raw);
+    const ctx = this.ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    view.render(ctx, this.canvas.width, this.canvas.height);
   }
 
-  // Risoluzione dinamica: abbassa la qualita' se il dispositivo fatica.
+  // Risoluzione dinamica: abbassa la nitidezza se il dispositivo fatica.
   _adapt(raw) {
     if (document.hidden) return;
     this.adaptTimer += raw;
     if (this.adaptTimer < 2) return;
     this.adaptTimer = 0;
-    const max = Math.min(window.devicePixelRatio || 1, this.quality.maxPixelRatio);
-    let pr = this.pixelRatio;
-    if (this.frameAvg > 26 && pr > 0.6) pr = Math.max(0.6, pr - 0.15);
-    else if (this.frameAvg < 15 && pr < max) pr = Math.min(max, pr + 0.1);
-    if (pr !== this.pixelRatio) {
-      this.pixelRatio = pr;
-      this.renderer.setPixelRatio(pr);
-      if (this.composer) this.composer.setPixelRatio(pr);
+    let s = this.dprScale;
+    if (this.frameAvg > 26 && s > 0.55) s = Math.max(0.55, s - 0.12);
+    else if (this.frameAvg < 15 && s < 1) s = Math.min(1, s + 0.08);
+    if (s !== this.dprScale) {
+      this.dprScale = s;
       this.resize();
     }
   }
@@ -255,8 +201,10 @@ function registerServiceWorker() {
   });
 }
 
-function boot() {
+async function boot() {
   try {
+    // il font serve per la sigla dipinta sulle spalle dei Titani
+    await Promise.race([document.fonts?.load('900 32px Orbitron'), new Promise((r) => setTimeout(r, 1500))]).catch(() => {});
     const app = new App();
     // riferimenti utili per il debug dalla console del browser
     window.__app = app;
@@ -265,12 +213,10 @@ function boot() {
     window.__missions = MISSIONS;
   } catch (e) {
     console.error(e);
-    const boot = document.getElementById('boot');
-    if (boot) boot.innerHTML = '<div style="max-width:420px;text-align:center;line-height:1.5">Impossibile avviare il gioco: il tuo dispositivo deve supportare WebGL.<br><br><small>' + String(e.message || e) + '</small></div>';
+    const el = document.getElementById('boot');
+    if (el) el.innerHTML = '<div style="max-width:420px;text-align:center;line-height:1.5">Impossibile avviare il gioco.<br><br><small>' + String(e.message || e) + '</small></div>';
   }
 }
 
 registerServiceWorker();
 boot();
-
-export { MISSIONS };

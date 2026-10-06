@@ -1,12 +1,12 @@
-// Prepara i progetti nativi Android / iOS con Capacitor.
-// Uso: node scripts/prepare-native.mjs android|ios
+// Prepara il progetto nativo Android con Capacitor.
+// Uso: node scripts/prepare-native.mjs android
 // (eseguire prima "npm run build")
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const platform = process.argv[2];
-if (!['android', 'ios'].includes(platform)) {
-  console.error('Uso: node scripts/prepare-native.mjs android|ios');
+if (platform !== 'android') {
+  console.error('Uso: node scripts/prepare-native.mjs android');
   process.exit(1);
 }
 if (!existsSync('dist/index.html')) {
@@ -58,25 +58,6 @@ if (platform === 'android') {
           '$1\n        <item name="android:windowFullscreen">true</item>\n        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>',
         ),
   );
-}
-
-if (platform === 'ios') {
-  patch('ios/App/App/Info.plist', (plist) => {
-    const landscape =
-      '<array>\n\t\t<string>UIInterfaceOrientationLandscapeLeft</string>\n\t\t<string>UIInterfaceOrientationLandscapeRight</string>\n\t</array>';
-    let out = plist.replace(
-      /(<key>UISupportedInterfaceOrientations<\/key>\s*)<array>[\s\S]*?<\/array>/,
-      `$1${landscape}`,
-    );
-    out = out.replace(
-      /(<key>UISupportedInterfaceOrientations~ipad<\/key>\s*)<array>[\s\S]*?<\/array>/,
-      `$1${landscape}`,
-    );
-    if (!out.includes('UIStatusBarHidden')) {
-      out = out.replace('<dict>', '<dict>\n\t<key>UIStatusBarHidden</key>\n\t<true/>\n\t<key>UIViewControllerBasedStatusBarAppearance</key>\n\t<false/>');
-    }
-    return out;
-  });
 }
 
 run(`npx cap sync ${platform}`);

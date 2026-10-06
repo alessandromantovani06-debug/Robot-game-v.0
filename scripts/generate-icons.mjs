@@ -92,7 +92,6 @@ async function render(markup, w, h, file, omitBackground = false) {
 await render(svg({ size: 192 }), 192, 192, 'public/icons/icon-192.png');
 await render(svg({ size: 512 }), 512, 512, 'public/icons/icon-512.png');
 await render(svg({ size: 512, scale: 0.78 }), 512, 512, 'public/icons/maskable-512.png');
-await render(svg({ size: 180, scale: 0.92 }), 180, 180, 'public/icons/apple-touch-icon.png');
 await render(svg({ size: 64 }), 64, 64, 'public/icons/favicon.png');
 await render(svg({ size: 1024 }), 1024, 1024, 'build/icon.png');
 // risorse per le app native (Capacitor)

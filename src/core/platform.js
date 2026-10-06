@@ -1,10 +1,7 @@
-// Rilevamento della piattaforma (browser, app installata, Android/iOS nativo, PC Electron).
+// Rilevamento della piattaforma (browser, app installata, Android nativo, PC Electron).
 
 export const isElectron = () => /Electron/i.test(navigator.userAgent);
 export const isNative = () => !!window.Capacitor?.isNativePlatform?.();
-
-export const isIOS = () =>
-  /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 export const isAndroid = () => /Android/i.test(navigator.userAgent);
 

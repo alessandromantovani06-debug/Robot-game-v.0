@@ -18,7 +18,6 @@ function serviceWorkerPlugin() {
         'icons/icon-192.png',
         'icons/icon-512.png',
         'icons/maskable-512.png',
-        'icons/apple-touch-icon.png',
         'icons/favicon.png',
       ];
       const precache = ['./', ...new Set([...files, ...publicFiles])].map((f) =>
@@ -35,7 +34,7 @@ function serviceWorkerPlugin() {
 }
 
 export default defineConfig({
-  // Percorsi relativi: necessari per GitHub Pages, Capacitor (Android/iOS) ed Electron (PC).
+  // Percorsi relativi: necessari per GitHub Pages, Capacitor (Android) ed Electron (PC).
   base: './',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),

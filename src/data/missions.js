@@ -67,7 +67,7 @@ export const MISSIONS = [
     env: 'hongkong',
     enemies: [
       { type: 'viperion', level: 2 },
-      { type: 'krakos', level: 2 },
+      { type: 'krakos', level: 1 },
     ],
     reward: 1400,
     brief: 'Il muro costiero non reggerà. Sei l\'ultima linea di difesa tra i Kaiju e dieci milioni di persone.',
@@ -87,7 +87,7 @@ export const MISSIONS = [
     place: 'Oceano Pacifico',
     env: 'rift',
     enemies: [
-      { type: 'viperion', level: 3 },
+      { type: 'viperion', level: 2 },
       { type: 'tonitrus', level: 2 },
     ],
     reward: 1900,
