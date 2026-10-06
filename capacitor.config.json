@@ -1,0 +1,10 @@
+{
+  "appId": "com.rifttitans.game",
+  "appName": "Rift Titans",
+  "webDir": "dist",
+  "backgroundColor": "#04060c",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}

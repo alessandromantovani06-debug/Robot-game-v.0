@@ -1,0 +1,19 @@
+{
+  "name": "Rift Titans - Difesa Kaiju",
+  "short_name": "Rift Titans",
+  "description": "Costruisci e personalizza il tuo Titano e combatti i Kaiju che emergono dalla Frattura.",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#04060c",
+  "theme_color": "#04060c",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

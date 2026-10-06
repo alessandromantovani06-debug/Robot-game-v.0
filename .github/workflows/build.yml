@@ -1,0 +1,144 @@
+# Compila Rift Titans per tutte le piattaforme:
+#  - Web / PWA (installabile da browser su Android e PC) -> GitHub Pages
+#  - Android (APK)
+#  - PC: Windows (.exe) e Linux (.AppImage)
+# Creando un tag "v*" (es. v1.0.0) i file vengono pubblicati in una Release.
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+jobs:
+  web:
+    name: Web / PWA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Archivio della versione web
+        run: cd dist && zip -qr ../RiftTitans-web.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RiftTitans-web
+          path: RiftTitans-web.zip
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  pages:
+    name: Pubblica su GitHub Pages
+    needs: web
+    if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+  android:
+    name: Android (APK)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run build
+      - name: Progetto Android (Capacitor)
+        run: node scripts/prepare-native.mjs android
+      - name: Compila APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - name: Rinomina APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk RiftTitans-android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RiftTitans-android
+          path: RiftTitans-android.apk
+
+  desktop:
+    name: PC (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+            target: --win
+          - os: ubuntu-latest
+            name: Linux
+            target: --linux
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: ''
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Pacchetto Electron
+        run: npx electron-builder ${{ matrix.target }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RiftTitans-${{ matrix.name }}
+          path: |
+            release/*.exe
+            release/*.AppImage
+          if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [web, android, desktop]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Rift Titans ${{ github.ref_name }}
+          files: artifacts/*
+          body: |
+            ## Come installare
+            - **Android**: scarica `RiftTitans-android.apk`, aprilo e consenti l'installazione da origini sconosciute.
+            - **Windows**: `RiftTitans-Setup-*.exe` (installer) oppure `RiftTitans-Portable-*.exe` (senza installazione).
+            - **Linux**: rendi eseguibile il file `.AppImage` e avvialo.
+            - **Da browser** (Android o PC): apri la versione web e scegli "Installa app".
