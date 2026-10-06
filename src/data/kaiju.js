@@ -1,0 +1,120 @@
+// Kaiju e loro mosse d'attacco.
+
+export const MOVES = {
+  swipe: {
+    name: 'Artigliata', kind: 'melee', anim: 'swipe',
+    windup: 0.7, active: 0.16, recovery: 0.6, range: 8, arc: 70, dmg: 60, knock: 3, cooldown: 1.4, weight: 3,
+  },
+  bite: {
+    name: 'Morso', kind: 'melee', anim: 'bite',
+    windup: 0.8, active: 0.14, recovery: 0.7, range: 7, arc: 45, dmg: 85, knock: 2.5, cooldown: 2.2, weight: 2,
+  },
+  pincer: {
+    name: 'Chela', kind: 'melee', anim: 'swipe',
+    windup: 0.75, active: 0.16, recovery: 0.6, range: 8.5, arc: 55, dmg: 74, knock: 3.5, cooldown: 1.6, weight: 3,
+  },
+  charge: {
+    name: 'Carica', kind: 'charge', anim: 'charge',
+    windup: 1.05, active: 0.95, recovery: 0.9, range: 32, minRange: 10, dmg: 100, knock: 8, cooldown: 6, weight: 2, speed: 34,
+  },
+  tail: {
+    name: 'Colpo di coda', kind: 'aoe', anim: 'tail',
+    windup: 0.9, active: 0.4, recovery: 0.8, range: 10, dmg: 72, knock: 5, cooldown: 5, weight: 2,
+  },
+  spit: {
+    name: 'Sputo acido', kind: 'projectile', anim: 'spit',
+    windup: 0.85, active: 0.1, recovery: 0.7, range: 48, minRange: 9, dmg: 55, cooldown: 3.5, weight: 2, speed: 36,
+  },
+  emp: {
+    name: 'Impulso EMP', kind: 'aoe', anim: 'emp',
+    windup: 1.5, active: 0.25, recovery: 1.1, range: 16, dmg: 45, knock: 4, drain: true, cooldown: 10, weight: 2,
+  },
+  slam: {
+    name: 'Balzo devastante', kind: 'leap', anim: 'slam',
+    windup: 0.95, active: 0.95, recovery: 1.0, range: 34, minRange: 11, dmg: 110, knock: 6, aoe: 8, cooldown: 7.5, weight: 2,
+  },
+  roar: {
+    name: 'Ruggito', kind: 'roar', anim: 'roar',
+    windup: 0.3, active: 1.3, recovery: 0.4, range: 999, cooldown: 22, weight: 1,
+  },
+};
+
+export const KAIJU = {
+  squalor: {
+    name: 'SQUALOR',
+    category: 1,
+    desc: 'Predatore rapido con la testa a lama. Attacca con artigli, morsi e cariche improvvise.',
+    hp: 2300,
+    dmg: 1,
+    speed: 7.5,
+    size: 1,
+    radius: 2.6,
+    skin: '#26343b',
+    belly: '#57666a',
+    glow: '#35e6ff',
+    body: { form: 'biped', head: 'shark', tail: 6, spikes: 6, arms: 'claws' },
+    moves: ['swipe', 'bite', 'charge', 'roar'],
+  },
+  krakos: {
+    name: 'KRAKOS',
+    category: 2,
+    desc: 'Corazzato come un granchio colossale. Le sue chele tranciano l\'acciaio dei Titani.',
+    hp: 3100,
+    dmg: 1,
+    speed: 5.6,
+    size: 1.05,
+    radius: 3.6,
+    skin: '#4a2b25',
+    belly: '#7d5a44',
+    glow: '#ff8a3a',
+    body: { form: 'quad', head: 'crab', tail: 3, spikes: 0, arms: 'pincers', shell: true },
+    moves: ['pincer', 'charge', 'slam', 'roar'],
+  },
+  viperion: {
+    name: 'VIPERION',
+    category: 3,
+    desc: 'Serpente bipede con cappuccio. Sputa acido corrosivo e frusta con la lunga coda.',
+    hp: 3800,
+    dmg: 1,
+    speed: 6.6,
+    size: 1.08,
+    radius: 2.8,
+    skin: '#1f3326',
+    belly: '#5f7a4a',
+    glow: '#a6ff3a',
+    body: { form: 'biped', head: 'cobra', tail: 9, spikes: 4, arms: 'claws', hood: true },
+    moves: ['swipe', 'spit', 'tail', 'bite', 'roar'],
+  },
+  tonitrus: {
+    name: 'TONITRUS',
+    category: 4,
+    desc: 'Colosso quadrupede carico di elettricità. Il suo impulso EMP prosciuga i reattori.',
+    hp: 5000,
+    dmg: 1.05,
+    speed: 5.3,
+    size: 1.25,
+    radius: 4,
+    skin: '#232438',
+    belly: '#4b4a66',
+    glow: '#8a7dff',
+    body: { form: 'quad', head: 'horned', tail: 6, spikes: 10 },
+    moves: ['charge', 'emp', 'slam', 'swipe', 'roar'],
+  },
+  leviathan: {
+    name: 'LEVIATHAN',
+    category: 5,
+    desc: 'Il re della Frattura. Nessun Titano è mai sopravvissuto a uno scontro diretto.',
+    hp: 8200,
+    dmg: 1.12,
+    speed: 6,
+    size: 1.45,
+    radius: 4.2,
+    skin: '#14191f',
+    belly: '#38424a',
+    glow: '#35e6ff',
+    body: { form: 'biped', head: 'abyss', tail: 10, spikes: 14, arms: 'claws', crown: true },
+    moves: ['swipe', 'bite', 'charge', 'tail', 'spit', 'emp', 'slam', 'roar'],
+  },
+};
+
+export const CATEGORY_LABEL = ['', 'I', 'II', 'III', 'IV', 'V'];
