@@ -259,6 +259,7 @@ export class HangarView {
     this.robot.yaw = prevYaw;
     this.ringMat.color.set(cfg.colors.accent);
     this.ringMat.emissive.set(cfg.colors.accent);
+    this.ringScale = this.robot.glowScale;
   }
 
   /** Inquadra la parte del robot che si sta modificando. */
@@ -347,7 +348,7 @@ export class HangarView {
     this.camera.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * r, this.focusY + Math.sin(this.pitch) * r, Math.cos(this.yaw) * Math.cos(this.pitch) * r);
     this.camera.lookAt(0, this.focusY, 0);
     this.robot.updateDisplay(dt);
-    this.ringMat.emissiveIntensity = 1.1 + Math.sin(this.time * 2) * 0.3;
+    this.ringMat.emissiveIntensity = (1.1 + Math.sin(this.time * 2) * 0.3) * (this.ringScale || 1);
 
     // scintille di saldatura
     this.sparkTimer -= dt;

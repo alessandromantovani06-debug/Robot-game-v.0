@@ -364,7 +364,7 @@ export class Screens {
       h(
         'ul',
         { class: 'tips' },
-        h('li', {}, 'Para appena prima dell\'impatto per una PARATA PERFETTA: il Kaiju resta stordito.'),
+        h('li', {}, 'Para appena prima dell\'impatto per una PARATA PERFETTA: il Kaiju resta stordito. Il mirino diventa rosso quando il Kaiju carica un colpo e bianco quando è il momento di parare.'),
         h('li', {}, 'Quando un Kaiju brilla sta caricando un attacco: scatta di lato o para.'),
         h('li', {}, 'Gli attacchi pesanti (Pugno a Razzo, Martello) sbilanciano i Kaiju più in fretta.'),
         h('li', {}, 'Il Cannone al Plasma consuma il reattore: tieni d\'occhio la barra gialla.'),

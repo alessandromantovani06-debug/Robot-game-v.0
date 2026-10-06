@@ -676,7 +676,10 @@ export class Battle {
   }
 
   update(realDt) {
-    if (this.paused) return;
+    if (this.paused) {
+      if (input.take('pause', 0.3)) this.resume();
+      return;
+    }
     if (input.take('pause', 0.3)) {
       this.pause();
       return;

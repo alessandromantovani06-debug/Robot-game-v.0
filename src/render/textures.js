@@ -43,6 +43,7 @@ function finish(tex, repeat = true) {
 }
 
 const cache = new Map();
+const panelKeys = [];
 
 /** Texture a pannelli per le corazze del robot (con livrea opzionale). */
 export function panelTexture(base, second, pattern = 'none', key = '') {
@@ -178,6 +179,13 @@ export function panelTexture(base, second, pattern = 'none', key = '') {
 
   const tex = finish(new THREE.CanvasTexture(c));
   cache.set(id, tex);
+  panelKeys.push(id);
+  // limita la memoria quando si provano molti colori nell'hangar
+  while (panelKeys.length > 48) {
+    const old = panelKeys.shift();
+    cache.get(old)?.dispose();
+    cache.delete(old);
+  }
   return tex;
 }
 

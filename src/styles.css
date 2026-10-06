@@ -1309,6 +1309,19 @@ kbd {
   clip-path: polygon(0 0, 20% 0, 20% 100%, 0 100%, 80% 0, 100% 0, 100% 100%, 80% 100%);
 }
 
+.reticle.danger {
+  border-color: #ff2020;
+  box-shadow: 0 0 18px rgba(255, 30, 30, 0.9);
+  animation-duration: 0.8s;
+}
+
+.reticle.now {
+  border-color: #ffffff;
+  border-width: 4px;
+  box-shadow: 0 0 24px #fff, 0 0 40px var(--accent);
+  animation-duration: 0.4s;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { FINISHES, PARTS, getPart } from '../data/parts.js';
 import { panelTexture, frameTexture, decalTexture } from './textures.js';
+import { mergeStaticMeshes, disposeMerged } from './merge.js';
 
 // ---------- geometrie in cache ----------
 const geoCache = new Map();
@@ -182,6 +183,7 @@ function buildTorso(id, chest, M, refs) {
       }
       const core = add(chest, cyl(0.62, 0.62, 0.18, 3), M.glow, 0, 1.0, 1.05, Math.PI / 2, 0, Math.PI);
       refs.core = core;
+      core.userData.keep = true;
       add(chest, rbox(2.2, 0.5, 1.6, 0.12), M.frame, 0, 2.15, -0.1);
       add(chest, rbox(2.3, 1.5, 0.8, 0.15), M.secondary, 0, 1.3, -1.25);
       for (const s of [-1, 1]) add(chest, cyl(0.2, 0.2, 1.2, 10), M.glowDim, 0.6 * s, 1.3, -1.7, 0, 0, 0);
@@ -193,6 +195,7 @@ function buildTorso(id, chest, M, refs) {
       add(chest, rbox(2.6, 0.9, 0.5, 0.15), M.secondary, 0, 1.75, 0.8);
       const core = add(chest, sph(0.42, 16, 12), M.glow, 0, 1.0, 0.95);
       refs.core = core;
+      core.userData.keep = true;
       const r1 = add(chest, tor(0.6, 0.07), M.secondary, 0, 1.0, 0.95);
       const r2 = add(chest, tor(0.6, 0.05), M.glow, 0, 1.0, 0.95, 0, Math.PI / 2, 0);
       r1.userData.axis = 'y';
@@ -212,7 +215,10 @@ function buildTorso(id, chest, M, refs) {
       add(chest, rbox(3.0, 1.0, 0.45, 0.12), M.secondary, 0, 1.75, 1.05, -0.12, 0, 0);
       for (let i = 0; i < 2; i++) {
         const g = add(chest, rbox(1.5, 0.16, 0.12, 0.04), M.glow, 0, 0.95 + i * 0.3, 1.1);
-        if (i === 0) refs.core = g;
+        if (i === 0) {
+          refs.core = g;
+          g.userData.keep = true;
+        }
       }
       add(chest, rbox(2.4, 0.5, 1.7, 0.12), M.frame, 0, 2.3, -0.15);
       for (let i = 0; i < 4; i++) {
@@ -230,6 +236,7 @@ function buildTorso(id, chest, M, refs) {
       add(chest, tor(0.55, 0.13, 10, 28), M.frame, 0, 0.98, 0.98);
       const core = add(chest, cyl(0.48, 0.48, 0.1, 24), M.glow, 0, 0.98, 0.98, Math.PI / 2, 0, 0);
       refs.core = core;
+      core.userData.keep = true;
       const fan = pivot(chest, 0, 0.98, 1.06);
       for (let i = 0; i < 3; i++) add(fan, rbox(0.85, 0.12, 0.05, 0.02), M.dark, 0, 0, 0, 0, 0, (i * Math.PI) / 3);
       refs.spinners.push(fan);
@@ -487,6 +494,7 @@ export function buildRobot(cfg, { shadows = false } = {}) {
       o.receiveShadow = shadows;
     }
   });
+  mergeStaticMeshes(root);
 
   const joints = {
     hips,
@@ -528,6 +536,7 @@ export function buildRobot(cfg, { shadows = false } = {}) {
     scale: chassis.scale[1],
     height: 9.4 * chassis.scale[1],
     dispose() {
+      disposeMerged(root);
       root.traverse((o) => {
         if (o.isMesh && o.material?.userData?.ownTexture) o.material.map?.dispose();
       });

@@ -68,6 +68,10 @@ export class RobotFighter {
     this.height = this.model.height;
     this.groundY = groundY;
     this.relaxed = relaxed;
+    // i colori molto luminosi (es. verde acido) brillerebbero troppo: si compensa l'intensita'
+    const c = new THREE.Color(cfg.colors.accent);
+    const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+    this.glowScale = clamp(0.55 / Math.max(0.05, lum), 0.55, 1.4);
 
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
@@ -283,14 +287,15 @@ export class RobotFighter {
     // input
     if (ctl && this.alive && B?.fighting) {
       if (this.state === 'idle' || this.state === 'block') {
-        if (ctl.take('special') && this.sync >= 100) this.trySpecial(B);
+        if (this.sync >= 100 && ctl.take('special')) this.trySpecial(B);
         else if (ctl.take('dash', 0.15)) {
           const d = wish.lengthSq() > 0.01 ? wish.clone().normalize() : this.forward(new THREE.Vector3()).multiplyScalar(-1);
           this.tryDash(d, B);
         } else if (ctl.take('left', 0.25)) this.tryAttack('L', B);
         else if (ctl.take('right', 0.25)) this.tryAttack('R', B);
-        else if (ctl.take('special') && this.sync < 100) {
+        else if (ctl.take('special')) {
           B.message('SINCRONIA INSUFFICIENTE', 'warn', 0.8);
+          audio.ui('error');
         }
       }
       // la parata puo' interrompere il recupero di un attacco
@@ -619,7 +624,7 @@ export class RobotFighter {
     if (this.overdrive > 0) glow += 1.8 + Math.sin(t * 20) * 0.5;
     if (this.state === 'special' && this.action && this.action.t < this.action.windup + this.action.active) glow += 2.2;
     if (!this.alive) glow = Math.max(0.1, 1.6 - this.deathTime * 0.8) * (Math.random() > 0.15 ? 1 : 0.2);
-    m.glow.emissiveIntensity = glow;
+    m.glow.emissiveIntensity = glow * this.glowScale;
     m.visor.emissiveIntensity = this.alive ? 1.6 + Math.sin(t * 2.5) * 0.15 : glow * 0.5;
     for (const s of m.spinners) {
       const ax = s.userData.axis || 'z';

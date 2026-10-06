@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { kaijuTextures } from './textures.js';
+import { mergeStaticMeshes, disposeMerged } from './merge.js';
 
 const geoCache = new Map();
 function cached(key, make) {
@@ -334,6 +335,7 @@ export function buildKaiju(def, { shadows = false } = {}) {
       o.receiveShadow = shadows;
     }
   });
+  mergeStaticMeshes(root);
 
   const mats = Object.values(M);
   return {
@@ -343,6 +345,7 @@ export function buildKaiju(def, { shadows = false } = {}) {
     materials: M,
     allMaterials: mats,
     dispose() {
+      disposeMerged(root);
       mats.forEach((m) => m.dispose());
     },
   };

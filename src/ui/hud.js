@@ -243,7 +243,7 @@ export class Hud {
     const txt = {
       move: { keyboard: 'Muoviti con <b>W A S D</b> o le <b>frecce</b>', touch: 'Muoviti trascinando il <b>joystick</b> a sinistra', gamepad: 'Muoviti con lo <b>stick sinistro</b>' },
       attack: { keyboard: 'Attacca con <b>J</b> (braccio sinistro) e <b>K</b> (destro) — o click sinistro/destro', touch: 'Attacca con i pulsanti <b>SX</b> e <b>DX</b>. Alternali per le combo!', gamepad: 'Attacca con <b>X</b> e <b>Y</b> (□ e △)' },
-      block: { keyboard: 'Tieni premuto <b>L</b> o <b>Shift</b> per parare. Para appena prima del colpo per una <b>PARATA PERFETTA</b>', touch: 'Tieni premuto <b>PARA</b>. Appena prima del colpo = <b>PARATA PERFETTA</b>', gamepad: 'Tieni premuto <b>LB</b> per parare' },
+      block: { keyboard: 'Tieni premuto <b>L</b> o <b>Shift</b> per parare. Quando il mirino diventa <b>bianco</b> para per una <b>PARATA PERFETTA</b>', touch: 'Tieni premuto <b>PARA</b>. Mirino <b>bianco</b> = momento della <b>PARATA PERFETTA</b>', gamepad: 'Tieni premuto <b>LB</b> per parare. Mirino <b>bianco</b> = <b>PARATA PERFETTA</b>' },
       dash: { keyboard: 'Premi <b>Spazio</b> per scattare e schivare', touch: 'Premi <b>SCATTO</b> per schivare gli attacchi', gamepad: 'Premi <b>A</b> (✕) per scattare' },
       special: { keyboard: 'Sincronia al 100%: premi <b>E</b> per la mossa <b>SPECIALE</b>!', touch: 'Sincronia al 100%: premi <b>SPEC.</b> per la mossa speciale!', gamepad: 'Sincronia al 100%: premi <b>B</b> (○) per la mossa speciale!' },
     };
@@ -411,6 +411,17 @@ export class Hud {
       n.el.style.opacity = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
       n.el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${1 + Math.max(0, 0.3 - n.t) * 2})`;
     }
+
+    // segnale per la parata: rosso = attacco in carica, bianco = para adesso
+    let cue = '';
+    for (const e of b.enemies) {
+      if (!e.alive || e.state !== 'windup' || !e.move || e.move.kind === 'roar' || e.move.kind === 'projectile') continue;
+      const left = e.windup - e.moveTime;
+      const lead = e.move.kind === 'melee' ? 0.22 : 0.3;
+      cue = left < lead ? 'now' : cue || 'danger';
+    }
+    this.reticle.classList.toggle('danger', cue === 'danger');
+    this.reticle.classList.toggle('now', cue === 'now');
 
     const tgt = b.fighting ? b.target : null;
     if (tgt) {
